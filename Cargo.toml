@@ -1,0 +1,33 @@
+[package]
+name = "joycon-mapper"
+version = "0.1.0"
+edition = "2021"
+description = "Joy-Con Left to keyboard/mouse mapper for macOS"
+
+[dependencies]
+enigo = "0.2"
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+dirs = "5.0"
+
+# macOS IOKit/HID dependencies for IOHIDManager
+[target.'cfg(target_os = "macos")'.dependencies]
+io-kit-sys = "0.5"
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
+
+# Cross-platform HID library (fallback for when IOHIDManager is blocked)
+[dependencies.hidapi]
+version = "2.4"
+optional = true
+
+[features]
+default = ["hidapi"]
+hidapi = ["dep:hidapi"]
+
+[target.'cfg(target_os = "macos")'.build-dependencies]

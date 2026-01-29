@@ -1,0 +1,48 @@
+# Joy-Con Mapper Configuration
+# Default configuration for Joy-Con Left to keyboard/mouse mapping
+
+[device]
+# Automatically detect and connect to Joy-Con
+auto_detect = true
+
+[mapping]
+# Stick deadzone (0.0 - 1.0)
+stick_deadzone = 0.15
+
+# Button mappings
+# Format: button_name = "action_type:action_value"
+# Or: button_name = { action = "action_type:action_value", modifiers = ["Mod1", "Mod2"] }
+[mapping.buttons]
+up = "key:UpArrow"
+down = "key:DownArrow"
+left = "key:LeftArrow"
+right = "key:RightArrow"
+l = "key:Space"
+zl = "mouse:LeftClick"
+minus = "key:Escape"
+capture = { action = "key:S", modifiers = ["Cmd", "Shift"] }
+stick_click = "key:Enter"
+sl = "key:Tab"
+sr = "key:Backspace"
+
+# Stick configuration
+[mapping.stick]
+# Stick mode: "mouse", "scroll", "keys", "disabled"
+mode = "mouse"
+
+[mapping.stick.mouse]
+# Mouse movement sensitivity
+sensitivity = 5.0
+
+[mapping.stick.scroll]
+# Scroll speed multiplier
+speed = 1.0
+
+# Layers - conditional mappings when specific buttons are held
+# Layer name format: button_held (e.g., zl_held, l_held)
+[mapping.layers.zl_held]
+# When ZL is held, D-pad controls scrolling instead of arrow keys
+up = { action = "scroll:up", amount = 3 }
+down = { action = "scroll:down", amount = 3 }
+left = { action = "scroll:left", amount = 3 }
+right = { action = "scroll:right", amount = 3 }
