@@ -39,8 +39,7 @@ struct JoyconMapperApp: App {
                 model.requestAccessibilityPermission()
             }
             Button("app.reconnect") {
-                model.stop()
-                model.start()
+                model.reconnect()
             }
             Divider()
             Button("app.quit") {

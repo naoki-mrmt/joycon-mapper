@@ -7,15 +7,17 @@ import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
-    struct ProfileOption: Identifiable, Hashable {
+    struct ProfileOption: Identifiable, Hashable, Codable {
         let id: String
-        let nameKey: String
+        var name: String
+        var nameKey: String?
+        var isBuiltIn: Bool
     }
 
-    static let profileOptions: [ProfileOption] = [
-        ProfileOption(id: "default", nameKey: "profile.default"),
-        ProfileOption(id: "browsing", nameKey: "profile.browsing"),
-        ProfileOption(id: "meeting", nameKey: "profile.meeting")
+    static let defaultProfileOptions: [ProfileOption] = [
+        ProfileOption(id: "default", name: "Default", nameKey: "profile.default", isBuiltIn: true),
+        ProfileOption(id: "browsing", name: "Browsing", nameKey: "profile.browsing", isBuiltIn: true),
+        ProfileOption(id: "meeting", name: "Meeting", nameKey: "profile.meeting", isBuiltIn: true)
     ]
 
     @Published var isMapperEnabled = true
@@ -34,9 +36,14 @@ final class AppModel: ObservableObject {
     @Published var isMouseYInverted = false {
         didSet { UserDefaults.standard.set(isMouseYInverted, forKey: mouseYInvertedStoreKey) }
     }
+    @Published var isOnboardingCompleted = false {
+        didSet { UserDefaults.standard.set(isOnboardingCompleted, forKey: onboardingCompletedStoreKey) }
+    }
+    @Published private(set) var profileOptions = AppModel.defaultProfileOptions
     @Published var activeProfileID = "default" {
         didSet {
             guard oldValue != activeProfileID else { return }
+            guard !isLoadingProfileState else { return }
             profiles[oldValue] = profile
             UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
             profile = profiles[activeProfileID] ?? .joyConLeftDefault
@@ -55,6 +62,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var launchAtLoginError: String?
     @Published var profile = MappingProfile() {
         didSet {
+            guard !isLoadingProfileState else { return }
             profiles[activeProfileID] = profile
             saveProfiles()
         }
@@ -68,9 +76,12 @@ final class AppModel: ObservableObject {
     private var stickX = 0.0
     private var stickY = 0.0
     private var profiles: [String: MappingProfile] = [:]
+    private var isLoadingProfileState = false
     private var mouseTimer: Timer?
+    private var deviceRefreshTimer: Timer?
     private let legacyProfileStoreKey = "JoyconMapper.MappingProfile.v1"
     private let profilesStoreKey = "JoyconMapper.MappingProfiles.v2"
+    private let profileOptionsStoreKey = "JoyconMapper.ProfileOptions.v1"
     private let activeProfileStoreKey = "JoyconMapper.ActiveProfile.v2"
     private let stickMouseEnabledStoreKey = "JoyconMapper.StickMouseEnabled.v1"
     private let mouseSpeedStoreKey = "JoyconMapper.MouseSpeed.v1"
@@ -78,6 +89,7 @@ final class AppModel: ObservableObject {
     private let mouseAccelerationStoreKey = "JoyconMapper.MouseAcceleration.v1"
     private let mouseYInvertedStoreKey = "JoyconMapper.MouseYInverted.v1"
     private let didRequestAccessibilityStoreKey = "JoyconMapper.DidRequestAccessibility.v1"
+    private let onboardingCompletedStoreKey = "JoyconMapper.OnboardingCompleted.v1"
 
     init() {
         loadMouseSettings()
@@ -85,7 +97,7 @@ final class AppModel: ObservableObject {
         refreshLaunchAtLoginStatus()
         hidClient.onDevicesChanged = { [weak self] devices in
             Task { @MainActor in
-                self?.devices = devices
+                self?.handleDevicesChanged(devices)
             }
         }
         hidClient.onInput = { [weak self] input in
@@ -109,6 +121,7 @@ final class AppModel: ObservableObject {
             isRunning = true
             lastError = nil
             startMouseTimer()
+            startDeviceRefreshTimer()
             requestAccessibilityPermissionIfNeeded()
         } catch {
             lastError = error.localizedDescription
@@ -122,7 +135,14 @@ final class AppModel: ObservableObject {
         pressedTriggerIDs.removeAll()
         mouseTimer?.invalidate()
         mouseTimer = nil
+        deviceRefreshTimer?.invalidate()
+        deviceRefreshTimer = nil
         isRunning = false
+    }
+
+    func reconnect() {
+        stop()
+        start()
     }
 
     func refreshPermissions() {
@@ -173,6 +193,60 @@ final class AppModel: ObservableObject {
         profile.assignments.removeValue(forKey: triggerID)
     }
 
+    func createProfile(named name: String) {
+        let trimmedName = normalizedProfileName(name, fallback: "Profile")
+        let id = uniqueProfileID()
+        profileOptions.append(ProfileOption(id: id, name: trimmedName, nameKey: nil, isBuiltIn: false))
+        profiles[id] = .joyConLeftDefault
+        saveProfileOptions()
+        saveProfiles()
+        activeProfileID = id
+    }
+
+    func duplicateActiveProfile() {
+        let sourceName = profileDisplayName(for: activeProfileID)
+        let id = uniqueProfileID()
+        profileOptions.append(ProfileOption(
+            id: id,
+            name: "\(sourceName) Copy",
+            nameKey: nil,
+            isBuiltIn: false
+        ))
+        profiles[id] = profile
+        saveProfileOptions()
+        saveProfiles()
+        activeProfileID = id
+    }
+
+    func renameActiveProfile(to name: String) {
+        let trimmedName = normalizedProfileName(name, fallback: profileDisplayName(for: activeProfileID))
+        guard let index = profileOptions.firstIndex(where: { $0.id == activeProfileID }) else { return }
+        profileOptions[index].name = trimmedName
+        profileOptions[index].nameKey = nil
+        saveProfileOptions()
+    }
+
+    func deleteActiveProfile() {
+        guard let index = profileOptions.firstIndex(where: { $0.id == activeProfileID }) else { return }
+        guard !profileOptions[index].isBuiltIn, profileOptions.count > 1 else { return }
+
+        let deletedID = activeProfileID
+        let nextProfileID = profileOptions[max(0, index - 1)].id
+        isLoadingProfileState = true
+        profileOptions.remove(at: index)
+        profiles.removeValue(forKey: deletedID)
+        activeProfileID = nextProfileID
+        profile = profiles[nextProfileID] ?? .joyConLeftDefault
+        isLoadingProfileState = false
+        UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
+        saveProfileOptions()
+        saveProfiles()
+    }
+
+    func profileDisplayName(for id: String) -> String {
+        profileOptions.first(where: { $0.id == id })?.name ?? Self.defaultProfileOptions.first?.name ?? "Default"
+    }
+
     func installJoyConLeftMouseDefaults() {
         profile.removeDPadMouseDefaults()
     }
@@ -192,6 +266,19 @@ final class AppModel: ObservableObject {
             recentInputs.insert(input, at: 0)
             recentInputs = Array(recentInputs.prefix(80))
         }
+    }
+
+    private func handleDevicesChanged(_ devices: [JoyconDevice]) {
+        self.devices = devices
+        guard devices.isEmpty else { return }
+        activeMouseMoves.removeAll()
+        pressedTriggerIDs.removeAll()
+        activeActionTriggers.removeAll()
+        activeTriggerByControlID.removeAll()
+        stickX = 0
+        stickY = 0
+        visibleStickX = 0
+        visibleStickY = 0
     }
 
     private func updatePressedState(with input: ControllerInput) {
@@ -275,6 +362,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func startDeviceRefreshTimer() {
+        guard deviceRefreshTimer == nil else { return }
+        deviceRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isRunning, self.devices.isEmpty else { return }
+                self.hidClient.refreshDevices()
+            }
+        }
+    }
+
     private func tickMouseMovement() {
         guard isMapperEnabled else { return }
 
@@ -327,6 +424,8 @@ final class AppModel: ObservableObject {
     }
 
     private func loadMouseSettings() {
+        isOnboardingCompleted = UserDefaults.standard.bool(forKey: onboardingCompletedStoreKey)
+
         if UserDefaults.standard.object(forKey: stickMouseEnabledStoreKey) != nil {
             isStickMouseEnabled = UserDefaults.standard.bool(forKey: stickMouseEnabledStoreKey)
         }
@@ -352,7 +451,11 @@ final class AppModel: ObservableObject {
     }
 
     private func loadProfile() {
+        isLoadingProfileState = true
+        defer { isLoadingProfileState = false }
+
         var loadedProfiles: [String: MappingProfile] = [:]
+        let loadedOptions = loadProfileOptions()
 
         if let data = UserDefaults.standard.data(forKey: profilesStoreKey),
            let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
@@ -362,7 +465,7 @@ final class AppModel: ObservableObject {
             loadedProfiles["default"] = decoded
         }
 
-        for option in Self.profileOptions where loadedProfiles[option.id] == nil {
+        for option in loadedOptions where loadedProfiles[option.id] == nil {
             loadedProfiles[option.id] = .joyConLeftDefault
         }
 
@@ -371,12 +474,52 @@ final class AppModel: ObservableObject {
         }
 
         profiles = loadedProfiles
-        activeProfileID = UserDefaults.standard.string(forKey: activeProfileStoreKey) ?? "default"
+        profileOptions = loadedOptions
+        let storedProfileID = UserDefaults.standard.string(forKey: activeProfileStoreKey) ?? "default"
+        activeProfileID = loadedOptions.contains(where: { $0.id == storedProfileID }) ? storedProfileID : loadedOptions[0].id
         profile = profiles[activeProfileID] ?? .joyConLeftDefault
+        saveProfileOptions()
+        saveProfiles()
     }
 
     private func saveProfiles() {
         guard let data = try? JSONEncoder().encode(profiles) else { return }
         UserDefaults.standard.set(data, forKey: profilesStoreKey)
+    }
+
+    private func loadProfileOptions() -> [ProfileOption] {
+        if let data = UserDefaults.standard.data(forKey: profileOptionsStoreKey),
+           let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data),
+           !decoded.isEmpty {
+            return mergedProfileOptions(decoded)
+        }
+
+        return Self.defaultProfileOptions
+    }
+
+    private func mergedProfileOptions(_ storedOptions: [ProfileOption]) -> [ProfileOption] {
+        var options = storedOptions
+        for builtIn in Self.defaultProfileOptions where !options.contains(where: { $0.id == builtIn.id }) {
+            options.insert(builtIn, at: min(options.count, Self.defaultProfileOptions.count))
+        }
+        return options
+    }
+
+    private func saveProfileOptions() {
+        guard let data = try? JSONEncoder().encode(profileOptions) else { return }
+        UserDefaults.standard.set(data, forKey: profileOptionsStoreKey)
+    }
+
+    private func normalizedProfileName(_ name: String, fallback: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? fallback : String(trimmed.prefix(32))
+    }
+
+    private func uniqueProfileID() -> String {
+        var id = "custom-\(UUID().uuidString.lowercased())"
+        while profiles[id] != nil || profileOptions.contains(where: { $0.id == id }) {
+            id = "custom-\(UUID().uuidString.lowercased())"
+        }
+        return id
     }
 }

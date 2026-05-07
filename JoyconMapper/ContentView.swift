@@ -40,6 +40,10 @@ struct ContentView: View {
     @State private var selectedInputID: ControllerInput.ID?
     @State private var recordingTarget: MappingTarget?
     @State private var isShowingInputLog = false
+    @State private var isShowingNewProfileDialog = false
+    @State private var isShowingRenameProfileDialog = false
+    @State private var isShowingDeleteProfileConfirmation = false
+    @State private var profileNameDraft = ""
 
     var body: some View {
         NavigationSplitView {
@@ -71,6 +75,38 @@ struct ContentView: View {
         .sheet(isPresented: $model.isShowingAbout) {
             AboutView()
         }
+        .alert("profile.new.title", isPresented: $isShowingNewProfileDialog) {
+            TextField("profile.name.placeholder", text: $profileNameDraft)
+            Button("profile.create") {
+                model.createProfile(named: profileNameDraft)
+                profileNameDraft = ""
+            }
+            Button("profile.cancel", role: .cancel) {
+                profileNameDraft = ""
+            }
+        } message: {
+            Text("profile.new.message")
+        }
+        .alert("profile.rename.title", isPresented: $isShowingRenameProfileDialog) {
+            TextField("profile.name.placeholder", text: $profileNameDraft)
+            Button("profile.rename") {
+                model.renameActiveProfile(to: profileNameDraft)
+                profileNameDraft = ""
+            }
+            Button("profile.cancel", role: .cancel) {
+                profileNameDraft = ""
+            }
+        } message: {
+            Text("profile.rename.message")
+        }
+        .alert("profile.delete.title", isPresented: $isShowingDeleteProfileConfirmation) {
+            Button("profile.delete", role: .destructive) {
+                model.deleteActiveProfile()
+            }
+            Button("profile.cancel", role: .cancel) {}
+        } message: {
+            Text(String(format: String(localized: "profile.delete.message"), activeProfileName))
+        }
     }
 
     private var sidebar: some View {
@@ -95,8 +131,13 @@ struct ContentView: View {
 
             Section("section.controller") {
                 if model.devices.isEmpty {
-                    Text("controller.empty")
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("controller.empty")
+                            .foregroundStyle(.secondary)
+                        Text("controller.autoReconnect")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 } else {
                     ForEach(model.devices) { device in
                         VStack(alignment: .leading, spacing: 3) {
@@ -148,8 +189,7 @@ struct ContentView: View {
                     }
                 }
                 Button {
-                    model.stop()
-                    model.start()
+                    model.reconnect()
                 } label: {
                     Label("app.reconnect", systemImage: "arrow.trianglehead.2.clockwise")
                 }
@@ -161,6 +201,9 @@ struct ContentView: View {
     private var detail: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
+            if !model.isOnboardingCompleted {
+                onboardingPanel
+            }
             profilePanel
             stickPanel
             keyList
@@ -228,6 +271,67 @@ struct ContentView: View {
         return (String(localized: "status.ready.ok"), "checkmark.circle.fill", .green)
     }
 
+    private var onboardingPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("onboarding.title", systemImage: "wand.and.sparkles")
+                    .font(.headline)
+                Spacer()
+                Button("onboarding.done") {
+                    model.isOnboardingCompleted = true
+                }
+                .controlSize(.small)
+            }
+
+            Text("onboarding.subtitle")
+                .foregroundStyle(.secondary)
+
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
+                onboardingRow(
+                    isComplete: model.isAccessibilityTrusted,
+                    titleKey: "onboarding.accessibility",
+                    detailKey: "onboarding.accessibility.detail"
+                )
+                onboardingRow(
+                    isComplete: !model.devices.isEmpty,
+                    titleKey: "onboarding.connect",
+                    detailKey: "onboarding.connect.detail"
+                )
+                onboardingRow(
+                    isComplete: model.isStickMouseEnabled,
+                    titleKey: "onboarding.stick",
+                    detailKey: "onboarding.stick.detail"
+                )
+                onboardingRow(
+                    isComplete: !model.profile.assignments.isEmpty,
+                    titleKey: "onboarding.mapping",
+                    detailKey: "onboarding.mapping.detail"
+                )
+            }
+        }
+        .padding(14)
+        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.accentColor.opacity(0.22), lineWidth: 1)
+        }
+    }
+
+    private func onboardingRow(
+        isComplete: Bool,
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey
+    ) -> some View {
+        GridRow {
+            Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isComplete ? Color.green : Color.secondary)
+            Text(titleKey)
+                .font(.body.weight(.medium))
+            Text(detailKey)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var profilePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -239,21 +343,67 @@ struct ContentView: View {
             }
 
             Picker("profile.title", selection: $model.activeProfileID) {
-                ForEach(AppModel.profileOptions) { option in
-                    Text(String(localized: String.LocalizationValue(option.nameKey))).tag(option.id)
+                ForEach(model.profileOptions) { option in
+                    Text(profileDisplayName(option)).tag(option.id)
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
+
+            HStack(spacing: 8) {
+                Button {
+                    profileNameDraft = String(localized: "profile.new.defaultName")
+                    isShowingNewProfileDialog = true
+                } label: {
+                    Label("profile.new", systemImage: "plus")
+                }
+
+                Button {
+                    model.duplicateActiveProfile()
+                } label: {
+                    Label("profile.duplicate", systemImage: "plus.square.on.square")
+                }
+
+                Button {
+                    profileNameDraft = activeProfileName
+                    isShowingRenameProfileDialog = true
+                } label: {
+                    Label("profile.rename", systemImage: "pencil")
+                }
+
+                Button(role: .destructive) {
+                    isShowingDeleteProfileConfirmation = true
+                } label: {
+                    Label("profile.delete", systemImage: "trash")
+                }
+                .disabled(!canDeleteActiveProfile)
+
+                Spacer()
+            }
+            .controlSize(.small)
         }
         .padding(14)
         .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var activeProfileName: String {
-        guard let option = AppModel.profileOptions.first(where: { $0.id == model.activeProfileID }) else {
+        guard let option = model.profileOptions.first(where: { $0.id == model.activeProfileID }) else {
             return String(localized: "profile.default")
         }
-        return String(localized: String.LocalizationValue(option.nameKey))
+        return profileDisplayName(option)
+    }
+
+    private var canDeleteActiveProfile: Bool {
+        guard let option = model.profileOptions.first(where: { $0.id == model.activeProfileID }) else {
+            return false
+        }
+        return !option.isBuiltIn && model.profileOptions.count > 1
+    }
+
+    private func profileDisplayName(_ option: AppModel.ProfileOption) -> String {
+        if let nameKey = option.nameKey {
+            return String(localized: String.LocalizationValue(nameKey))
+        }
+        return option.name
     }
 
     private var stickPanel: some View {
@@ -599,7 +749,7 @@ private enum AppInfo {
 
     static var versionDisplay: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.3.0"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0.5.0"
         let build = info?["CFBundleVersion"] as? String
 
         if let build, !build.isEmpty {

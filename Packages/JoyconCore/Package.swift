@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "JoyconCore",
     platforms: [
-        .macOS(.v14)
+        .macOS("26.0")
     ],
     products: [
         .library(name: "JoyconMapping", targets: ["JoyconMapping"]),
