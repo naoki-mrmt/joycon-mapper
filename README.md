@@ -1,6 +1,8 @@
 # Joycon Mapper
 
-A macOS utility for using a Nintendo Switch Joy-Con (L) as a small pointer and shortcut controller.
+Joycon Mapper は、Nintendo Switch の Joy-Con (L) を macOS の小さなポインタ・ショートカットコントローラーとして使うためのメニューバーアプリです。
+
+左スティックでマウスポインタを動かし、Joy-Con の各ボタンにはキーボードショートカット、修飾キーのホールド、マウスクリックなどを割り当てられます。
 
 ## Install
 
@@ -11,29 +13,53 @@ brew tap naoki-mrmt/tap
 brew install --cask joycon-mapper
 ```
 
-初回起動時に macOS のアクセシビリティ許可を求められます。許可後、Joy-Con (L) を Bluetooth 接続して使ってください。
+インストール後、`/Applications/JoyconMapper.app` を起動してください。
 
-## Features
-
-- Move the pointer with the left stick
-- Tune pointer speed, deadzone, acceleration, and vertical direction
-- Map Joy-Con buttons and D-pad inputs per profile
-- Record custom keyboard shortcuts
-- Hold modifier keys such as Command, Option, Shift, or Option + Command
-- Assign mouse clicks, navigation keys, and custom actions
-- Japanese and English UI
+初回起動時に macOS のアクセシビリティ許可が必要です。許可後、Joy-Con (L) を Bluetooth 接続すると入力が表示されます。
 
 ## Requirements
 
 - macOS
-- Nintendo Switch Joy-Con (L) connected over Bluetooth
-- Accessibility permission for pointer movement and keyboard events
+- Nintendo Switch Joy-Con (L)
+- Bluetooth 接続
+- アクセシビリティ許可
+
+## Features
+
+- 左スティックでマウスポインタを移動
+- ポインタ速度、デッドゾーン、加速度、上下反転を調整
+- プロファイルごとに Joy-Con ボタンと D-pad を割り当て
+- キーボードショートカットを録画して割り当て
+- Command、Option、Shift、Option + Command などの修飾キーをホールド
+- 左クリック、右クリック、矢印キー、戻る/進むなどのテンプレート割り当て
+- 入力ログ表示
+- 日本語・英語 UI
+
+## Setup
+
+1. Joy-Con (L) を macOS に Bluetooth 接続します。
+2. Joycon Mapper を起動します。
+3. macOS のアクセシビリティ許可を付与します。
+4. 左スティックを動かして、ポインタが動くことを確認します。
+5. トップ画面のキー一覧から、各ボタンに好きな動作を割り当てます。
 
 ## Notes
 
-Joy-Con controllers do not expose a microphone to macOS. This app can control microphone-related shortcuts such as mute or push-to-talk, but it cannot use a Joy-Con as an audio input device.
+Joy-Con には macOS の音声入力として使えるマイクはありません。このアプリはミュートや push-to-talk などのショートカットを操作できますが、Joy-Con 自体をマイクとして使うことはできません。
 
-If macOS turns on Gaming Focus when the Joy-Con is connected, check System Settings > Focus > Gaming and disable automatic activation for wireless controllers. The app declares itself as a Utilities app, but the controller connection itself can still trigger macOS Focus automation.
+Joy-Con 接続時に macOS の集中モード「ゲーム」が有効になる場合は、`システム設定 > 集中モード > ゲーム` で、ワイヤレスコントローラーによる自動起動を無効にしてください。このアプリ自体は Utilities アプリとして宣言していますが、コントローラー接続が macOS 側の自動化を起動する場合があります。
+
+## Uninstall
+
+```sh
+brew uninstall --cask joycon-mapper
+```
+
+設定も消したい場合:
+
+```sh
+rm ~/Library/Preferences/com.muramoto-co.JoyconMapper.plist
+```
 
 ## Development
 
@@ -42,8 +68,8 @@ Open `JoyconMapper.xcodeproj` in Xcode and run the `JoyconMapper` scheme.
 Command-line build:
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode-26.5.0-Beta.3.app/Contents/Developer \
-xcodebuild -project JoyconMapper.xcodeproj \
+xcodebuild \
+  -project JoyconMapper.xcodeproj \
   -scheme JoyconMapper \
   -configuration Debug \
   -derivedDataPath .build/xcode \
@@ -51,14 +77,15 @@ xcodebuild -project JoyconMapper.xcodeproj \
   build
 ```
 
-## Distribution
+## Release
 
-The simplest download flow is:
+Public releases are signed with a Developer ID Application certificate, notarized by Apple, attached to GitHub Releases, and distributed through Homebrew Cask.
 
-1. Build a Release app.
-2. Zip `JoyconMapper.app`.
-3. Attach the zip to a GitHub Release.
+Release docs:
 
-For public distribution, the recommended flow is Developer ID signing plus notarization, then attaching a signed `.dmg` or `.zip` to a GitHub Release. Unsigned builds are fine for personal testing, but other users will see Gatekeeper warnings.
+- [DISTRIBUTION.md](DISTRIBUTION.md)
+- [RELEASE.md](RELEASE.md)
 
-See [DISTRIBUTION.md](DISTRIBUTION.md) for the release script and Homebrew Cask template.
+## License
+
+MIT License. See [LICENSE](LICENSE).
