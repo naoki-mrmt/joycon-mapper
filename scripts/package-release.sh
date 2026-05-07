@@ -20,6 +20,29 @@ SHA_PATH="${ZIP_PATH}.sha256"
 
 mkdir -p "${OUTPUT_DIR}"
 
+if [[ -n "${NOTARY_PROFILE:-}" && -z "${CODESIGN_IDENTITY:-}" ]]; then
+  echo "NOTARY_PROFILE requires CODESIGN_IDENTITY." >&2
+  echo "example:" >&2
+  echo "  CODESIGN_IDENTITY=\"Developer ID Application: Your Name (TEAMID)\" \\" >&2
+  echo "  NOTARY_PROFILE=\"joycon-mapper-notary\" \\" >&2
+  echo "  $0 ${VERSION}" >&2
+  exit 64
+fi
+
+if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
+  if ! security find-identity -v -p codesigning | grep -Fq "\"${CODESIGN_IDENTITY}\""; then
+    echo "codesigning identity not found: ${CODESIGN_IDENTITY}" >&2
+    echo "available identities:" >&2
+    security find-identity -v -p codesigning >&2
+    exit 65
+  fi
+
+  if [[ "${CODESIGN_IDENTITY}" != Developer\ ID\ Application:* ]]; then
+    echo "warning: CODESIGN_IDENTITY is not a Developer ID Application certificate." >&2
+    echo "notarization for public distribution normally requires Developer ID signing." >&2
+  fi
+fi
+
 xcodebuild \
   -project "${PROJECT}" \
   -scheme "${SCHEME}" \

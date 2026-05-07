@@ -51,11 +51,19 @@ For distribution outside the Mac App Store, the ideal artifact is:
 - Submitted to Apple notarization
 - Stapled before zipping or packaging
 
+Check prerequisites:
+
+```sh
+./scripts/check-distribution-prereqs.sh
+```
+
 Create a notary profile once:
 
 ```sh
 xcrun notarytool store-credentials joycon-mapper-notary
 ```
+
+You also need a `Developer ID Application` certificate installed in Keychain Access. An `Apple Development` certificate is enough for local development, but not for public notarized distribution.
 
 Then package:
 
