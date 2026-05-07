@@ -19,7 +19,7 @@ brew install --cask joycon-mapper
 
 ## Requirements
 
-- macOS
+- macOS 26 以降
 - Nintendo Switch Joy-Con (L)
 - Bluetooth 接続
 - アクセシビリティ許可
@@ -35,6 +35,7 @@ brew install --cask joycon-mapper
 - 入力ログ表示
 - 日本語・英語 UI
 - アプリ内 About でバージョン、GitHub、MIT License を表示
+- ログイン時に起動
 
 ## Setup
 

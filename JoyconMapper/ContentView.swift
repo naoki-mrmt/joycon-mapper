@@ -49,6 +49,7 @@ struct ContentView: View {
         }
         .onAppear {
             isShowingAccessibilityAlert = model.shouldShowAccessibilityPrompt
+            model.refreshLaunchAtLoginStatus()
         }
         .alert("accessibility.alert.title", isPresented: $isShowingAccessibilityAlert) {
             Button("accessibility.alert.openSettings") {
@@ -125,6 +126,15 @@ struct ContentView: View {
 
             Section("section.app") {
                 Toggle("app.mapperEnabled", isOn: $model.isMapperEnabled)
+                Toggle("app.launchAtLogin", isOn: Binding(
+                    get: { model.isLaunchAtLoginEnabled },
+                    set: { model.setLaunchAtLoginEnabled($0) }
+                ))
+                if let error = model.launchAtLoginError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
                 Button {
                     model.isShowingAbout = true
                 } label: {
@@ -589,7 +599,7 @@ private enum AppInfo {
 
     static var versionDisplay: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.2.0"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0.3.0"
         let build = info?["CFBundleVersion"] as? String
 
         if let build, !build.isEmpty {

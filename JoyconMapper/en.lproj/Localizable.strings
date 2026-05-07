@@ -24,6 +24,7 @@
 "mouse.acceleration" = "Acceleration";
 "mouse.invertY" = "Invert Y";
 "app.mapperEnabled" = "Mapper Enabled";
+"app.launchAtLogin" = "Launch at Login";
 "app.about" = "About Joycon Mapper";
 "app.allowAccessibility" = "Allow Accessibility";
 "app.reconnect" = "Reconnect";

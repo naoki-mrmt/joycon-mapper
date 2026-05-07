@@ -24,6 +24,7 @@
 "mouse.acceleration" = "加速度";
 "mouse.invertY" = "上下を反転";
 "app.mapperEnabled" = "マッパーを有効化";
+"app.launchAtLogin" = "ログイン時に起動";
 "app.about" = "Joycon Mapper について";
 "app.allowAccessibility" = "アクセシビリティを許可";
 "app.reconnect" = "再接続";

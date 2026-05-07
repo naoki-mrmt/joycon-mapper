@@ -3,6 +3,7 @@ import Foundation
 import JoyconHID
 import JoyconMapping
 import MacInput
+import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -50,6 +51,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var isRunning = false
     @Published var isShowingAbout = false
+    @Published private(set) var isLaunchAtLoginEnabled = false
+    @Published private(set) var launchAtLoginError: String?
     @Published var profile = MappingProfile() {
         didSet {
             profiles[activeProfileID] = profile
@@ -79,6 +82,7 @@ final class AppModel: ObservableObject {
     init() {
         loadMouseSettings()
         loadProfile()
+        refreshLaunchAtLoginStatus()
         hidClient.onDevicesChanged = { [weak self] devices in
             Task { @MainActor in
                 self?.devices = devices
@@ -135,6 +139,25 @@ final class AppModel: ObservableObject {
         guard !isAccessibilityTrusted else { return }
         guard !UserDefaults.standard.bool(forKey: didRequestAccessibilityStoreKey) else { return }
         requestAccessibilityPermission()
+    }
+
+    func refreshLaunchAtLoginStatus() {
+        isLaunchAtLoginEnabled = SMAppService.mainApp.status == .enabled
+    }
+
+    func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
+        do {
+            if isEnabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            launchAtLoginError = nil
+            refreshLaunchAtLoginStatus()
+        } catch {
+            launchAtLoginError = error.localizedDescription
+            refreshLaunchAtLoginStatus()
+        }
     }
 
     func assignLastInput(_ action: MappingAction) {

@@ -25,6 +25,10 @@ struct JoyconMapperApp: App {
             Label(menuBarTitle, systemImage: menuBarSystemImage)
             Divider()
             Toggle("app.mapperEnabled", isOn: $model.isMapperEnabled)
+            Toggle("app.launchAtLogin", isOn: Binding(
+                get: { model.isLaunchAtLoginEnabled },
+                set: { model.setLaunchAtLoginEnabled($0) }
+            ))
             Divider()
             Button("app.about") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
