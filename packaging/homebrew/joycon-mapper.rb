@@ -1,6 +1,6 @@
 cask "joycon-mapper" do
-  version "0.1.0"
-  sha256 "742fae045014fb26077901eefd73ded9d0752f0b7a303c5c1d2f9eff8dd894fc"
+  version "0.2.0"
+  sha256 "c559f6a7b5a14dfa9a7e150377aa9debfd8ed6464929ed71ad73c833c246d747"
 
   url "https://github.com/naoki-mrmt/joycon-mapper/releases/download/v#{version}/JoyconMapper-v#{version}.zip"
   name "Joycon Mapper"
