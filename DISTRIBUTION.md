@@ -6,6 +6,8 @@ Use GitHub Releases first, then add a Homebrew Cask once the release artifact is
 
 The Mac App Store is not the best first target for this app. Joycon Mapper needs HID access, Accessibility permission, pointer movement, and synthetic keyboard events. Those features are useful for a local utility, but they are a poor fit for Mac App Store sandboxing and review. The app currently disables App Sandbox for that reason.
 
+For the exact release commands, follow `RELEASE.md`.
+
 ## Release Channels
 
 ### GitHub Releases
