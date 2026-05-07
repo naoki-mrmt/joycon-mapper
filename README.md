@@ -2,6 +2,17 @@
 
 A macOS utility for using a Nintendo Switch Joy-Con (L) as a small pointer and shortcut controller.
 
+## Install
+
+Homebrew でインストールできます。
+
+```sh
+brew tap naoki-mrmt/tap
+brew install --cask joycon-mapper
+```
+
+初回起動時に macOS のアクセシビリティ許可を求められます。許可後、Joy-Con (L) を Bluetooth 接続して使ってください。
+
 ## Features
 
 - Move the pointer with the left stick
