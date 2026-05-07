@@ -34,6 +34,7 @@ brew install --cask joycon-mapper
 - 左クリック、右クリック、矢印キー、戻る/進むなどのテンプレート割り当て
 - 入力ログ表示
 - 日本語・英語 UI
+- アプリ内 About でバージョン、GitHub、MIT License を表示
 
 ## Setup
 

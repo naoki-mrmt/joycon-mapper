@@ -24,6 +24,7 @@
 "mouse.acceleration" = "加速度";
 "mouse.invertY" = "上下を反転";
 "app.mapperEnabled" = "マッパーを有効化";
+"app.about" = "Joycon Mapper について";
 "app.allowAccessibility" = "アクセシビリティを許可";
 "app.reconnect" = "再接続";
 "app.quit" = "終了";
@@ -92,3 +93,8 @@
 "recorder.subtitle" = "%@ に割り当てるキーを押してください。";
 "recorder.waiting" = "キー、または修飾キーを押してください";
 "recorder.cancel" = "キャンセル";
+"about.github" = "GitHub リポジトリ";
+"about.license.title" = "ライセンス";
+"about.close" = "閉じる";
+"about.version" = "バージョン %@";
+"about.version.build" = "バージョン %@ (%@)";

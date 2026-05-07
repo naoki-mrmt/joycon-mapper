@@ -24,6 +24,7 @@
 "mouse.acceleration" = "Acceleration";
 "mouse.invertY" = "Invert Y";
 "app.mapperEnabled" = "Mapper Enabled";
+"app.about" = "About Joycon Mapper";
 "app.allowAccessibility" = "Allow Accessibility";
 "app.reconnect" = "Reconnect";
 "app.quit" = "Quit";
@@ -92,3 +93,8 @@
 "recorder.subtitle" = "Press the keys to assign to %@.";
 "recorder.waiting" = "Press a key or modifiers";
 "recorder.cancel" = "Cancel";
+"about.github" = "GitHub Repository";
+"about.license.title" = "License";
+"about.close" = "Close";
+"about.version" = "Version %@";
+"about.version.build" = "Version %@ (%@)";

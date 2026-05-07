@@ -26,6 +26,11 @@ struct JoyconMapperApp: App {
             Divider()
             Toggle("app.mapperEnabled", isOn: $model.isMapperEnabled)
             Divider()
+            Button("app.about") {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                model.isShowingAbout = true
+            }
+            Divider()
             Button("app.allowAccessibility") {
                 model.requestAccessibilityPermission()
             }

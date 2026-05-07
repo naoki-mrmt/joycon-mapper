@@ -49,6 +49,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var visibleStickY = 0.0
     @Published private(set) var lastError: String?
     @Published private(set) var isRunning = false
+    @Published var isShowingAbout = false
     @Published var profile = MappingProfile() {
         didSet {
             profiles[activeProfileID] = profile
