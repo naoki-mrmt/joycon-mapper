@@ -49,3 +49,5 @@ The simplest download flow is:
 3. Attach the zip to a GitHub Release.
 
 For public distribution, the recommended flow is Developer ID signing plus notarization, then attaching a signed `.dmg` or `.zip` to a GitHub Release. Unsigned builds are fine for personal testing, but other users will see Gatekeeper warnings.
+
+See [DISTRIBUTION.md](DISTRIBUTION.md) for the release script and Homebrew Cask template.
