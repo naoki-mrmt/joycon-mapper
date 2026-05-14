@@ -61,7 +61,7 @@ Casks/joycon-mapper.rb
 
 ## 毎回のリリース手順
 
-以下は `0.1.0` をリリースする例です。実際のバージョンに置き換えてください。
+以下は `0.8.0` をリリースする例です。実際のバージョンに置き換えてください。
 
 ### 1. 作業ツリーを確認する
 
@@ -88,14 +88,14 @@ xcodebuild \
 ```sh
 CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 NOTARY_PROFILE="joycon-mapper-notary" \
-./scripts/package-release.sh 0.1.0
+./scripts/package-release.sh 0.8.0
 ```
 
 生成物は次の 2 つです。
 
 ```text
-.build/dist/JoyconMapper-v0.1.0.zip
-.build/dist/JoyconMapper-v0.1.0.zip.sha256
+.build/dist/JoyconMapper-v0.8.0.zip
+.build/dist/JoyconMapper-v0.8.0.zip.sha256
 ```
 
 ### 4. Gatekeeper の確認をする
@@ -105,7 +105,7 @@ NOTARY_PROFILE="joycon-mapper-notary" \
 ```sh
 rm -rf /tmp/JoyconMapperReleaseCheck
 mkdir -p /tmp/JoyconMapperReleaseCheck
-ditto -x -k .build/dist/JoyconMapper-v0.1.0.zip /tmp/JoyconMapperReleaseCheck
+ditto -x -k .build/dist/JoyconMapper-v0.8.0.zip /tmp/JoyconMapperReleaseCheck
 ```
 
 アプリを検証します。
@@ -120,8 +120,8 @@ codesign --verify --deep --strict --verbose=2 /tmp/JoyconMapperReleaseCheck/Joyc
 ### 5. Git tag を作る
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.8.0
+git push origin v0.8.0
 ```
 
 ### 6. GitHub Release を作る
@@ -129,10 +129,10 @@ git push origin v0.1.0
 GitHub CLI の認証が使える場合:
 
 ```sh
-gh release create v0.1.0 \
-  .build/dist/JoyconMapper-v0.1.0.zip \
-  .build/dist/JoyconMapper-v0.1.0.zip.sha256 \
-  --title "Joycon Mapper v0.1.0" \
+gh release create v0.8.0 \
+  .build/dist/JoyconMapper-v0.8.0.zip \
+  .build/dist/JoyconMapper-v0.8.0.zip.sha256 \
+  --title "Joycon Mapper v0.8.0" \
   --notes "Signed and notarized macOS build."
 ```
 
@@ -141,7 +141,7 @@ GitHub CLI の認証が壊れている場合は、GitHub の Web UI で release 
 Release URL はこの形になります。
 
 ```text
-https://github.com/naoki-mrmt/joycon-mapper/releases/tag/v0.1.0
+https://github.com/naoki-mrmt/joycon-mapper/releases/tag/v0.8.0
 ```
 
 ### 7. Homebrew Cask を更新する
@@ -149,7 +149,7 @@ https://github.com/naoki-mrmt/joycon-mapper/releases/tag/v0.1.0
 sha256 を確認します。
 
 ```sh
-cat .build/dist/JoyconMapper-v0.1.0.zip.sha256
+cat .build/dist/JoyconMapper-v0.8.0.zip.sha256
 ```
 
 次のファイルを更新します。
@@ -161,7 +161,7 @@ packaging/homebrew/joycon-mapper.rb
 更新する値:
 
 ```ruby
-version "0.1.0"
+version "0.8.0"
 sha256 "<sha256-from-the-file>"
 ```
 
@@ -176,7 +176,7 @@ tap 側でコミットして push します。
 ```sh
 cd ../homebrew-tap
 git add Casks/joycon-mapper.rb
-git commit -m "Update Joycon Mapper to 0.1.0"
+git commit -m "Update Joycon Mapper to 0.8.0"
 git push origin main
 ```
 
@@ -196,13 +196,8 @@ brew install --cask joycon-mapper
 - Joy-Con 入力が表示される
 - 左スティックでポインタが動く
 - 割り当てたショートカットが発火する
-
-## 現在のブロッカー
-
-直近の前提チェックでは、次の状態でした。
-
-- `Apple Development: Naoki Muramoto (63R9HR7B92)` は入っている
-- `Developer ID Application` 証明書がまだ入っていない
-- `joycon-mapper-notary` profile がまだ作られていない
-
-最初の公開 Homebrew リリース前に、初回セットアップを完了してください。
+- 左スティック押し込みで左クリックできる
+- ZL で右クリックできる
+- D-pad で上下左右にスクロールできる
+- プロファイルを初期設定に戻せる
+- 設定を書き出し、読み込み直して同じ割り当てが復元される

@@ -55,7 +55,16 @@
 "profile.delete" = "Delete";
 "profile.delete.title" = "Delete Profile";
 "profile.delete.message" = "Delete \"%@\"? This cannot be undone.";
+"profile.reset" = "Restore Defaults";
+"profile.reset.title" = "Restore Profile Defaults";
+"profile.reset.message" = "Restore \"%@\" assignments to the default set?";
 "profile.cancel" = "Cancel";
+"settings.export" = "Export Settings";
+"settings.import" = "Import Settings";
+"settings.import.success" = "Settings imported.";
+"settings.import.unsupportedVersion" = "Settings file format version %d is not supported.";
+"settings.alert.title" = "Settings";
+"settings.alert.ok" = "OK";
 "onboarding.title" = "Quick Setup";
 "onboarding.subtitle" = "Finish these once and Joycon Mapper is ready for daily use.";
 "onboarding.done" = "Hide";

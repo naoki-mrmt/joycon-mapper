@@ -55,7 +55,16 @@
 "profile.delete" = "削除";
 "profile.delete.title" = "プロファイルを削除";
 "profile.delete.message" = "「%@」を削除しますか？この操作は元に戻せません。";
+"profile.reset" = "初期設定に戻す";
+"profile.reset.title" = "プロファイルを初期設定に戻す";
+"profile.reset.message" = "「%@」の割り当てを初期設定に戻しますか？";
 "profile.cancel" = "キャンセル";
+"settings.export" = "設定を書き出し";
+"settings.import" = "設定を読み込み";
+"settings.import.success" = "設定を読み込みました。";
+"settings.import.unsupportedVersion" = "この設定ファイルの形式バージョン %d はサポートされていません。";
+"settings.alert.title" = "設定";
+"settings.alert.ok" = "OK";
 "onboarding.title" = "クイックセットアップ";
 "onboarding.subtitle" = "ここまで済ませると、Joycon Mapper を普段使いしやすくなります。";
 "onboarding.done" = "非表示";

@@ -9,6 +9,7 @@ import SwiftUI
 import AppKit
 import JoyconHID
 import JoyconMapping
+import UniformTypeIdentifiers
 
 private typealias MappingKeyboardShortcut = JoyconMapping.KeyboardShortcut
 
@@ -47,6 +48,11 @@ struct ContentView: View {
     @State private var isShowingNewProfileDialog = false
     @State private var isShowingRenameProfileDialog = false
     @State private var isShowingDeleteProfileConfirmation = false
+    @State private var isShowingResetProfileConfirmation = false
+    @State private var isShowingSettingsImporter = false
+    @State private var isShowingSettingsExporter = false
+    @State private var settingsExportDocument = SettingsExportDocument(data: Data())
+    @State private var settingsAlertMessage: String?
     @State private var profileNameDraft = ""
 
     var body: some View {
@@ -79,6 +85,23 @@ struct ContentView: View {
         .sheet(isPresented: $model.isShowingAbout) {
             AboutView()
         }
+        .fileImporter(
+            isPresented: $isShowingSettingsImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            importSettings(from: result)
+        }
+        .fileExporter(
+            isPresented: $isShowingSettingsExporter,
+            document: settingsExportDocument,
+            contentType: .json,
+            defaultFilename: "JoyconMapper-Settings"
+        ) { result in
+            if case .failure(let error) = result {
+                settingsAlertMessage = error.localizedDescription
+            }
+        }
         .alert("profile.new.title", isPresented: $isShowingNewProfileDialog) {
             TextField("profile.name.placeholder", text: $profileNameDraft)
             Button("profile.create") {
@@ -110,6 +133,24 @@ struct ContentView: View {
             Button("profile.cancel", role: .cancel) {}
         } message: {
             Text(String(format: String(localized: "profile.delete.message"), activeProfileName))
+        }
+        .alert("profile.reset.title", isPresented: $isShowingResetProfileConfirmation) {
+            Button("profile.reset", role: .destructive) {
+                model.resetActiveProfileToDefaults()
+            }
+            Button("profile.cancel", role: .cancel) {}
+        } message: {
+            Text(String(format: String(localized: "profile.reset.message"), activeProfileName))
+        }
+        .alert("settings.alert.title", isPresented: Binding(
+            get: { settingsAlertMessage != nil },
+            set: { if !$0 { settingsAlertMessage = nil } }
+        )) {
+            Button("settings.alert.ok", role: .cancel) {
+                settingsAlertMessage = nil
+            }
+        } message: {
+            Text(settingsAlertMessage ?? "")
         }
     }
 
@@ -380,6 +421,31 @@ struct ContentView: View {
                     Label("profile.delete", systemImage: "trash")
                 }
                 .disabled(!canDeleteActiveProfile)
+
+                Button {
+                    isShowingResetProfileConfirmation = true
+                } label: {
+                    Label("profile.reset", systemImage: "arrow.counterclockwise")
+                }
+
+                Spacer()
+            }
+            .controlSize(.small)
+
+            Divider()
+
+            HStack(spacing: 8) {
+                Button {
+                    exportSettings()
+                } label: {
+                    Label("settings.export", systemImage: "square.and.arrow.up")
+                }
+
+                Button {
+                    isShowingSettingsImporter = true
+                } label: {
+                    Label("settings.import", systemImage: "square.and.arrow.down")
+                }
 
                 Spacer()
             }
@@ -724,6 +790,50 @@ struct ContentView: View {
             else { String(localized: "action.scroll") }
         }
     }
+
+    private func exportSettings() {
+        do {
+            settingsExportDocument = SettingsExportDocument(data: try model.exportSettingsData())
+            isShowingSettingsExporter = true
+        } catch {
+            settingsAlertMessage = error.localizedDescription
+        }
+    }
+
+    private func importSettings(from result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let canAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if canAccess {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            try model.importSettingsData(Data(contentsOf: url))
+            settingsAlertMessage = String(localized: "settings.import.success")
+        } catch {
+            settingsAlertMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct SettingsExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
 }
 
 private struct AboutView: View {
@@ -785,7 +895,7 @@ private enum AppInfo {
 
     static var versionDisplay: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.5.0"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0.8.0"
         let build = info?["CFBundleVersion"] as? String
 
         if let build, !build.isEmpty {

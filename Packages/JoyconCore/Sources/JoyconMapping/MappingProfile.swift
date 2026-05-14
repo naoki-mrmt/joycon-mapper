@@ -57,7 +57,14 @@ public struct MappingProfile: Codable, Equatable, Sendable {
     }
 
     public static var joyConLeftDefault: MappingProfile {
-        MappingProfile()
+        MappingProfile(assignments: [
+            "joycon.leftStick": .mouseClick(.left),
+            "joycon.zl": .mouseClick(.right),
+            "hat.57.up": .scroll(deltaX: 0, deltaY: 14),
+            "hat.57.down": .scroll(deltaX: 0, deltaY: -14),
+            "hat.57.left": .scroll(deltaX: -14, deltaY: 0),
+            "hat.57.right": .scroll(deltaX: 14, deltaY: 0)
+        ])
     }
 
     public func action(for input: ControllerInput) -> MappingAction {

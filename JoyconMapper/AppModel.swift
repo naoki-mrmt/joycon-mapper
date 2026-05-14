@@ -14,6 +14,19 @@ final class AppModel: ObservableObject {
         var isBuiltIn: Bool
     }
 
+    struct SettingsSnapshot: Codable, Equatable {
+        var formatVersion: Int
+        var exportedAt: Date
+        var activeProfileID: String
+        var profileOptions: [ProfileOption]
+        var profiles: [String: MappingProfile]
+        var isStickMouseEnabled: Bool
+        var mouseSpeed: Double
+        var mouseDeadzone: Double
+        var mouseAcceleration: Double
+        var isMouseYInverted: Bool
+    }
+
     static let defaultProfileOptions: [ProfileOption] = [
         ProfileOption(id: "default", name: "Default", nameKey: "profile.default", isBuiltIn: true),
         ProfileOption(id: "browsing", name: "Browsing", nameKey: "profile.browsing", isBuiltIn: true),
@@ -91,6 +104,7 @@ final class AppModel: ObservableObject {
     private let mouseYInvertedStoreKey = "JoyconMapper.MouseYInverted.v1"
     private let didRequestAccessibilityStoreKey = "JoyconMapper.DidRequestAccessibility.v1"
     private let onboardingCompletedStoreKey = "JoyconMapper.OnboardingCompleted.v1"
+    private let settingsExportFormatVersion = 1
 
     init() {
         loadMouseSettings()
@@ -240,6 +254,67 @@ final class AppModel: ObservableObject {
         activeProfileID = nextProfileID
         profile = profiles[nextProfileID] ?? .joyConLeftDefault
         isLoadingProfileState = false
+        UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
+        saveProfileOptions()
+        saveProfiles()
+    }
+
+    func resetActiveProfileToDefaults() {
+        profile = .joyConLeftDefault
+    }
+
+    func exportSettingsData() throws -> Data {
+        profiles[activeProfileID] = profile
+        let snapshot = SettingsSnapshot(
+            formatVersion: settingsExportFormatVersion,
+            exportedAt: Date(),
+            activeProfileID: activeProfileID,
+            profileOptions: profileOptions,
+            profiles: profiles,
+            isStickMouseEnabled: isStickMouseEnabled,
+            mouseSpeed: mouseSpeed,
+            mouseDeadzone: mouseDeadzone,
+            mouseAcceleration: mouseAcceleration,
+            isMouseYInverted: isMouseYInverted
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(snapshot)
+    }
+
+    func importSettingsData(_ data: Data) throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let snapshot = try decoder.decode(SettingsSnapshot.self, from: data)
+        guard snapshot.formatVersion == settingsExportFormatVersion else {
+            throw SettingsImportError.unsupportedVersion(snapshot.formatVersion)
+        }
+
+        let options = mergedProfileOptions(snapshot.profileOptions).isEmpty
+            ? Self.defaultProfileOptions
+            : mergedProfileOptions(snapshot.profileOptions)
+
+        var importedProfiles = snapshot.profiles
+        for option in options where importedProfiles[option.id] == nil {
+            importedProfiles[option.id] = .joyConLeftDefault
+        }
+
+        isLoadingProfileState = true
+        profileOptions = options
+        profiles = importedProfiles
+        activeProfileID = options.contains(where: { $0.id == snapshot.activeProfileID })
+            ? snapshot.activeProfileID
+            : options[0].id
+        profile = importedProfiles[activeProfileID] ?? .joyConLeftDefault
+        isLoadingProfileState = false
+
+        isStickMouseEnabled = snapshot.isStickMouseEnabled
+        mouseSpeed = clamped(snapshot.mouseSpeed, to: 800...7200)
+        mouseDeadzone = clamped(snapshot.mouseDeadzone, to: 0.05...0.45)
+        mouseAcceleration = clamped(snapshot.mouseAcceleration, to: 1.0...2.4)
+        isMouseYInverted = snapshot.isMouseYInverted
+
         UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
         saveProfileOptions()
         saveProfiles()
@@ -529,11 +604,26 @@ final class AppModel: ObservableObject {
         return trimmed.isEmpty ? fallback : String(trimmed.prefix(32))
     }
 
+    private func clamped(_ value: Double, to range: ClosedRange<Double>) -> Double {
+        min(max(value, range.lowerBound), range.upperBound)
+    }
+
     private func uniqueProfileID() -> String {
         var id = "custom-\(UUID().uuidString.lowercased())"
         while profiles[id] != nil || profileOptions.contains(where: { $0.id == id }) {
             id = "custom-\(UUID().uuidString.lowercased())"
         }
         return id
+    }
+}
+
+enum SettingsImportError: LocalizedError {
+    case unsupportedVersion(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedVersion(let version):
+            String(format: String(localized: "settings.import.unsupportedVersion"), version)
+        }
     }
 }
