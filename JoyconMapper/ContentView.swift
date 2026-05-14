@@ -14,24 +14,28 @@ private typealias MappingKeyboardShortcut = JoyconMapping.KeyboardShortcut
 
 private struct MappingTarget: Identifiable, Hashable {
     let triggerID: String
-    let displayName: String
+    let displayNameKey: String
     let systemImage: String
 
     var id: String { triggerID }
+
+    var displayName: String {
+        String(localized: String.LocalizationValue(displayNameKey))
+    }
 }
 
 private let joyConLeftTargets: [MappingTarget] = [
-    MappingTarget(triggerID: "joycon.zl", displayName: "ZL", systemImage: "button.horizontal.top.press"),
-    MappingTarget(triggerID: "joycon.l", displayName: "L", systemImage: "button.horizontal.top.press"),
-    MappingTarget(triggerID: "joycon.sl", displayName: "SL", systemImage: "rectangle.leftthird.inset.filled"),
-    MappingTarget(triggerID: "joycon.sr", displayName: "SR", systemImage: "rectangle.rightthird.inset.filled"),
-    MappingTarget(triggerID: "joycon.minus", displayName: "Minus", systemImage: "minus"),
-    MappingTarget(triggerID: "joycon.capture", displayName: "Capture", systemImage: "camera"),
-    MappingTarget(triggerID: "joycon.leftStick", displayName: "Stick Press", systemImage: "circle.dotted.circle"),
-    MappingTarget(triggerID: "hat.57.up", displayName: "D-pad Up", systemImage: "arrow.up"),
-    MappingTarget(triggerID: "hat.57.down", displayName: "D-pad Down", systemImage: "arrow.down"),
-    MappingTarget(triggerID: "hat.57.left", displayName: "D-pad Left", systemImage: "arrow.left"),
-    MappingTarget(triggerID: "hat.57.right", displayName: "D-pad Right", systemImage: "arrow.right")
+    MappingTarget(triggerID: "joycon.zl", displayNameKey: "target.zl", systemImage: "button.horizontal.top.press"),
+    MappingTarget(triggerID: "joycon.l", displayNameKey: "target.l", systemImage: "button.horizontal.top.press"),
+    MappingTarget(triggerID: "joycon.sl", displayNameKey: "target.sl", systemImage: "rectangle.leftthird.inset.filled"),
+    MappingTarget(triggerID: "joycon.sr", displayNameKey: "target.sr", systemImage: "rectangle.rightthird.inset.filled"),
+    MappingTarget(triggerID: "joycon.minus", displayNameKey: "target.minus", systemImage: "minus"),
+    MappingTarget(triggerID: "joycon.capture", displayNameKey: "target.capture", systemImage: "camera"),
+    MappingTarget(triggerID: "joycon.leftStick", displayNameKey: "target.leftStickPress", systemImage: "circle.dotted.circle"),
+    MappingTarget(triggerID: "hat.57.up", displayNameKey: "target.dpadUp", systemImage: "arrow.up"),
+    MappingTarget(triggerID: "hat.57.down", displayNameKey: "target.dpadDown", systemImage: "arrow.down"),
+    MappingTarget(triggerID: "hat.57.left", displayNameKey: "target.dpadLeft", systemImage: "arrow.left"),
+    MappingTarget(triggerID: "hat.57.right", displayNameKey: "target.dpadRight", systemImage: "arrow.right")
 ]
 
 struct ContentView: View {
@@ -526,7 +530,7 @@ struct ContentView: View {
                 }
                 TableColumn(String(localized: "log.mappedAction")) { input in
                     HStack {
-                        assignmentMenu(for: MappingTarget(triggerID: input.triggerID, displayName: input.triggerDisplayName, systemImage: "smallcircle.filled.circle")) {
+                        assignmentMenu(for: MappingTarget(triggerID: input.triggerID, displayNameKey: input.triggerDisplayName, systemImage: "smallcircle.filled.circle")) {
                             Label(actionDisplayName(model.action(for: input)), systemImage: "slider.horizontal.3")
                         }
                         .menuStyle(.borderlessButton)
