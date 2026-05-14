@@ -7,6 +7,7 @@ public enum MappingAction: Codable, Equatable, Sendable {
     case pushToTalk(KeyboardShortcut)
     case mouseClick(MouseClickButton)
     case mouseMove(deltaX: Double, deltaY: Double)
+    case scroll(deltaX: Double, deltaY: Double)
 
     public var displayName: String {
         switch self {
@@ -26,6 +27,12 @@ public enum MappingAction: Codable, Equatable, Sendable {
             else if deltaX < 0, deltaY == 0 { "Mouse Left" }
             else if deltaX > 0, deltaY == 0 { "Mouse Right" }
             else { "Mouse Move" }
+        case .scroll(let deltaX, let deltaY):
+            if deltaX == 0, deltaY > 0 { "Scroll Up" }
+            else if deltaX == 0, deltaY < 0 { "Scroll Down" }
+            else if deltaX < 0, deltaY == 0 { "Scroll Left" }
+            else if deltaX > 0, deltaY == 0 { "Scroll Right" }
+            else { "Scroll" }
         }
     }
 }

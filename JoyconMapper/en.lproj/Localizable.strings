@@ -90,6 +90,7 @@
 "action.none" = "No Action";
 "action.clear" = "Clear Assignment";
 "action.group.mouse" = "Mouse";
+"action.group.scroll" = "Scroll";
 "action.group.modifiers" = "Hold Modifiers";
 "action.group.navigation" = "Navigation";
 "action.leftClick" = "Left Click";
@@ -112,6 +113,11 @@
 "action.mouseLeft" = "Mouse Left";
 "action.mouseRight" = "Mouse Right";
 "action.mouseMove" = "Mouse Move";
+"action.scrollUp" = "Scroll Up";
+"action.scrollDown" = "Scroll Down";
+"action.scrollLeft" = "Scroll Left";
+"action.scrollRight" = "Scroll Right";
+"action.scroll" = "Scroll";
 "accessibility.alert.title" = "Accessibility Permission Required";
 "accessibility.alert.message" = "Joycon Mapper needs Accessibility permission to move the pointer and send keyboard shortcuts.";
 "accessibility.alert.openSettings" = "Open Settings";

@@ -73,6 +73,7 @@ final class AppModel: ObservableObject {
     private var activeActionTriggers: Set<String> = []
     private var activeTriggerByControlID: [String: String] = [:]
     private var activeMouseMoves: [String: (deltaX: Double, deltaY: Double)] = [:]
+    private var activeScrolls: [String: (deltaX: Double, deltaY: Double)] = [:]
     private var stickX = 0.0
     private var stickY = 0.0
     private var profiles: [String: MappingProfile] = [:]
@@ -132,6 +133,7 @@ final class AppModel: ObservableObject {
     func stop() {
         hidClient.stop()
         activeMouseMoves.removeAll()
+        activeScrolls.removeAll()
         pressedTriggerIDs.removeAll()
         mouseTimer?.invalidate()
         mouseTimer = nil
@@ -272,6 +274,7 @@ final class AppModel: ObservableObject {
         self.devices = devices
         guard devices.isEmpty else { return }
         activeMouseMoves.removeAll()
+        activeScrolls.removeAll()
         pressedTriggerIDs.removeAll()
         activeActionTriggers.removeAll()
         activeTriggerByControlID.removeAll()
@@ -304,6 +307,7 @@ final class AppModel: ObservableObject {
                 break
             }
             activeMouseMoves.removeValue(forKey: previousTrigger)
+            activeScrolls.removeValue(forKey: previousTrigger)
             activeActionTriggers.remove(previousTrigger)
             activeTriggerByControlID.removeValue(forKey: input.control.id)
         }
@@ -318,6 +322,7 @@ final class AppModel: ObservableObject {
                 break
             }
             activeMouseMoves.removeValue(forKey: input.triggerID)
+            activeScrolls.removeValue(forKey: input.triggerID)
             activeActionTriggers.remove(input.triggerID)
             activeTriggerByControlID.removeValue(forKey: input.control.id)
             return
@@ -350,6 +355,10 @@ final class AppModel: ObservableObject {
             activeMouseMoves[input.triggerID] = (deltaX, deltaY)
             activeActionTriggers.insert(input.triggerID)
             activeTriggerByControlID[input.control.id] = input.triggerID
+        case .scroll(let deltaX, let deltaY):
+            activeScrolls[input.triggerID] = (deltaX, deltaY)
+            activeActionTriggers.insert(input.triggerID)
+            activeTriggerByControlID[input.control.id] = input.triggerID
         }
     }
 
@@ -378,14 +387,19 @@ final class AppModel: ObservableObject {
         let stickMove = stickMouseDelta()
         if isStickMouseEnabled, stickMove.deltaX != 0 || stickMove.deltaY != 0 {
             inputSender.moveMouse(deltaX: stickMove.deltaX, deltaY: stickMove.deltaY)
-            return
+        } else if !activeMouseMoves.isEmpty {
+            let combined = activeMouseMoves.values.reduce((deltaX: 0.0, deltaY: 0.0)) { partial, move in
+                (partial.deltaX + move.deltaX, partial.deltaY + move.deltaY)
+            }
+            inputSender.moveMouse(deltaX: combined.deltaX, deltaY: combined.deltaY)
         }
 
-        guard !activeMouseMoves.isEmpty else { return }
-        let combined = activeMouseMoves.values.reduce((deltaX: 0.0, deltaY: 0.0)) { partial, move in
-            (partial.deltaX + move.deltaX, partial.deltaY + move.deltaY)
+        if !activeScrolls.isEmpty {
+            let combined = activeScrolls.values.reduce((deltaX: 0.0, deltaY: 0.0)) { partial, scroll in
+                (partial.deltaX + scroll.deltaX, partial.deltaY + scroll.deltaY)
+            }
+            inputSender.scroll(deltaX: combined.deltaX, deltaY: combined.deltaY)
         }
-        inputSender.moveMouse(deltaX: combined.deltaX, deltaY: combined.deltaY)
     }
 
     private func updateStickMouseState(with input: ControllerInput) {

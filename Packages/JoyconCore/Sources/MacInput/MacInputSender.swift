@@ -80,6 +80,20 @@ public final class MacInputSender {
             .post(tap: .cghidEventTap)
     }
 
+    public func scroll(deltaX: Double, deltaY: Double) {
+        guard deltaX != 0 || deltaY != 0 else { return }
+        let horizontal = Int32(deltaX.rounded())
+        let vertical = Int32(deltaY.rounded())
+        CGEvent(
+            scrollWheelEvent2Source: nil,
+            units: .pixel,
+            wheelCount: 2,
+            wheel1: vertical,
+            wheel2: horizontal,
+            wheel3: 0
+        )?.post(tap: .cghidEventTap)
+    }
+
     private func postKey(_ keyCode: CGKeyCode, isDown: Bool, modifiers: KeyboardShortcut.Modifiers) {
         guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: isDown) else {
             return

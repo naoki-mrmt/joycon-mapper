@@ -33,6 +33,7 @@ brew install --cask joycon-mapper
 - キーボードショートカットを録画して割り当て
 - Command、Option、Shift、Option + Command などの修飾キーをホールド
 - 左クリック、右クリック、矢印キー、戻る/進むなどのテンプレート割り当て
+- D-pad やボタンへの縦横スクロール割り当て
 - 未接続時の自動再検出
 - 初回セットアップ案内
 - 入力ログ表示

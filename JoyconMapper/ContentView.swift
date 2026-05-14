@@ -578,6 +578,32 @@ struct ContentView: View {
                 }
             }
 
+            Section("action.group.scroll") {
+                Button {
+                    model.assign(.scroll(deltaX: 0, deltaY: 14), to: target.triggerID)
+                } label: {
+                    Label("action.scrollUp", systemImage: "arrow.up")
+                }
+
+                Button {
+                    model.assign(.scroll(deltaX: 0, deltaY: -14), to: target.triggerID)
+                } label: {
+                    Label("action.scrollDown", systemImage: "arrow.down")
+                }
+
+                Button {
+                    model.assign(.scroll(deltaX: -14, deltaY: 0), to: target.triggerID)
+                } label: {
+                    Label("action.scrollLeft", systemImage: "arrow.left")
+                }
+
+                Button {
+                    model.assign(.scroll(deltaX: 14, deltaY: 0), to: target.triggerID)
+                } label: {
+                    Label("action.scrollRight", systemImage: "arrow.right")
+                }
+            }
+
             Section("action.group.modifiers") {
                 Button {
                     model.assign(.modifierHold(.command), to: target.triggerID)
@@ -686,6 +712,12 @@ struct ContentView: View {
             else if deltaX < 0, deltaY == 0 { String(localized: "action.mouseLeft") }
             else if deltaX > 0, deltaY == 0 { String(localized: "action.mouseRight") }
             else { String(localized: "action.mouseMove") }
+        case .scroll(let deltaX, let deltaY):
+            if deltaX == 0, deltaY > 0 { String(localized: "action.scrollUp") }
+            else if deltaX == 0, deltaY < 0 { String(localized: "action.scrollDown") }
+            else if deltaX < 0, deltaY == 0 { String(localized: "action.scrollLeft") }
+            else if deltaX > 0, deltaY == 0 { String(localized: "action.scrollRight") }
+            else { String(localized: "action.scroll") }
         }
     }
 }

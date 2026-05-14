@@ -90,6 +90,7 @@
 "action.none" = "未割り当て";
 "action.clear" = "割り当てを解除";
 "action.group.mouse" = "マウス";
+"action.group.scroll" = "スクロール";
 "action.group.modifiers" = "修飾キーを保持";
 "action.group.navigation" = "ナビゲーション";
 "action.leftClick" = "左クリック";
@@ -112,6 +113,11 @@
 "action.mouseLeft" = "マウス左";
 "action.mouseRight" = "マウス右";
 "action.mouseMove" = "マウス移動";
+"action.scrollUp" = "上にスクロール";
+"action.scrollDown" = "下にスクロール";
+"action.scrollLeft" = "左にスクロール";
+"action.scrollRight" = "右にスクロール";
+"action.scroll" = "スクロール";
 "accessibility.alert.title" = "アクセシビリティ許可が必要です";
 "accessibility.alert.message" = "Joycon Mapper がポインタ移動やキーボードショートカット送信を行うには、アクセシビリティの許可が必要です。";
 "accessibility.alert.openSettings" = "設定を開く";
