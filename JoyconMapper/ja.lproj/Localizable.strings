@@ -62,6 +62,8 @@
 "settings.export" = "設定を書き出し";
 "settings.import" = "設定を読み込み";
 "settings.import.success" = "設定を読み込みました。";
+"settings.import.emptyFile" = "設定ファイルが空です。Joycon Mapper で書き出した JSON ファイルを選択してください。";
+"settings.import.invalidFormat" = "設定ファイルを読み込めません。Joycon Mapper で書き出した JSON ファイルか確認してください。";
 "settings.import.unsupportedVersion" = "この設定ファイルの形式バージョン %d はサポートされていません。";
 "settings.alert.title" = "設定";
 "settings.alert.ok" = "OK";
@@ -102,6 +104,7 @@
 "mapping.empty" = "Joy-Con (L) を接続して、いずれかのボタンを押してください。";
 "log.title" = "入力ログ";
 "log.open" = "入力ログ";
+"log.clear" = "クリア";
 "log.close" = "閉じる";
 "log.control" = "入力";
 "log.value" = "値";

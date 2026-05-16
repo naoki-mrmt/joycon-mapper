@@ -209,6 +209,10 @@ final class AppModel: ObservableObject {
         profile.assignments.removeValue(forKey: triggerID)
     }
 
+    func clearRecentInputs() {
+        recentInputs.removeAll()
+    }
+
     func createProfile(named name: String) {
         let trimmedName = normalizedProfileName(name, fallback: "Profile")
         let id = uniqueProfileID()
@@ -284,9 +288,19 @@ final class AppModel: ObservableObject {
     }
 
     func importSettingsData(_ data: Data) throws {
+        guard !data.isEmpty else {
+            throw SettingsImportError.emptyFile
+        }
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let snapshot = try decoder.decode(SettingsSnapshot.self, from: data)
+        let snapshot: SettingsSnapshot
+        do {
+            snapshot = try decoder.decode(SettingsSnapshot.self, from: data)
+        } catch {
+            throw SettingsImportError.invalidFormat
+        }
+
         guard snapshot.formatVersion == settingsExportFormatVersion else {
             throw SettingsImportError.unsupportedVersion(snapshot.formatVersion)
         }
@@ -618,10 +632,16 @@ final class AppModel: ObservableObject {
 }
 
 enum SettingsImportError: LocalizedError {
+    case emptyFile
+    case invalidFormat
     case unsupportedVersion(Int)
 
     var errorDescription: String? {
         switch self {
+        case .emptyFile:
+            String(localized: "settings.import.emptyFile")
+        case .invalidFormat:
+            String(localized: "settings.import.invalidFormat")
         case .unsupportedVersion(let version):
             String(format: String(localized: "settings.import.unsupportedVersion"), version)
         }

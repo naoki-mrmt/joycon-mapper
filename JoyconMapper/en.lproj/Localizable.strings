@@ -62,6 +62,8 @@
 "settings.export" = "Export Settings";
 "settings.import" = "Import Settings";
 "settings.import.success" = "Settings imported.";
+"settings.import.emptyFile" = "The settings file is empty. Select a JSON file exported from Joycon Mapper.";
+"settings.import.invalidFormat" = "The settings file could not be read. Check that it is a JSON file exported from Joycon Mapper.";
 "settings.import.unsupportedVersion" = "Settings file format version %d is not supported.";
 "settings.alert.title" = "Settings";
 "settings.alert.ok" = "OK";
@@ -102,6 +104,7 @@
 "mapping.empty" = "Connect Joy-Con (L), then press any button.";
 "log.title" = "Input Log";
 "log.open" = "Input Log";
+"log.clear" = "Clear";
 "log.close" = "Close";
 "log.control" = "Control";
 "log.value" = "Value";

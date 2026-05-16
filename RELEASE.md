@@ -118,10 +118,12 @@ gh release create v0.9.0 \
   .build/dist/JoyconMapper-v0.9.0.zip \
   .build/dist/JoyconMapper-v0.9.0.zip.sha256 \
   --title "Joycon Mapper v0.9.0" \
-  --notes "Signed and notarized macOS build."
+  --notes-file .github/release-notes-template.md
 ```
 
 GitHub CLI の認証が壊れている場合は、GitHub の Web UI で release を作り、同じ 2 ファイルをアップロードします。
+
+`--notes-file` に渡す前に、テンプレート内の `vX.Y.Z`、検証結果、Highlights を実際のリリース内容に合わせて更新します。
 
 Release URL はこの形になります。
 

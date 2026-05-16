@@ -575,6 +575,10 @@ struct ContentView: View {
                 Text("log.title")
                     .font(.title3.weight(.semibold))
                 Spacer()
+                Button("log.clear") {
+                    model.clearRecentInputs()
+                }
+                .disabled(model.recentInputs.isEmpty)
                 Button("log.close") {
                     isShowingInputLog = false
                 }

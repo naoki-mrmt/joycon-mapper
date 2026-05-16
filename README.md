@@ -13,6 +13,13 @@ brew tap naoki-mrmt/tap
 brew install --cask joycon-mapper
 ```
 
+インストール確認:
+
+```sh
+brew list --cask joycon-mapper
+spctl --assess --type execute --verbose=4 /Applications/JoyconMapper.app
+```
+
 インストール後、`/Applications/JoyconMapper.app` を起動してください。
 
 初回起動時に macOS のアクセシビリティ許可が必要です。許可後、Joy-Con (L) を Bluetooth 接続すると入力が表示されます。
