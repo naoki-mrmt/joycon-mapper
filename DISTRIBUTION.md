@@ -27,8 +27,8 @@ Homebrew Cask should point at the GitHub Release artifact. It does not replace s
 
 Recommended flow:
 
-1. Create a GitHub Release such as `v0.1.0`.
-2. Attach `JoyconMapper-v0.1.0.zip`.
+1. Create a GitHub Release such as `v0.9.0`.
+2. Attach `JoyconMapper-v0.9.0.zip`.
 3. Compute its SHA-256.
 4. Update a Cask formula with the release URL and SHA-256.
 5. Publish the Cask in a tap, for example `naoki-mrmt/homebrew-tap`.
@@ -72,13 +72,13 @@ Then package:
 ```sh
 CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 NOTARY_PROFILE="joycon-mapper-notary" \
-./scripts/package-release.sh 0.1.0
+./scripts/package-release.sh 0.9.0
 ```
 
 For local testing without signing:
 
 ```sh
-./scripts/package-release.sh 0.1.0
+./scripts/package-release.sh 0.9.0
 ```
 
 Unsigned builds are useful for development, but other users will see Gatekeeper friction.

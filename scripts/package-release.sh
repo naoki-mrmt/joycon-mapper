@@ -4,7 +4,7 @@ set -euo pipefail
 VERSION="${1:-}"
 if [[ -z "${VERSION}" ]]; then
   echo "usage: $0 <version>" >&2
-  echo "example: $0 0.1.0" >&2
+  echo "example: $0 0.9.0" >&2
   exit 64
 fi
 
@@ -80,3 +80,4 @@ shasum -a 256 "${ZIP_PATH}" | tee "${SHA_PATH}"
 echo
 echo "created ${ZIP_PATH}"
 echo "sha256 written to ${SHA_PATH}"
+echo "verify with: ./scripts/verify-release.sh ${VERSION}"
