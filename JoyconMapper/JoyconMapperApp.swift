@@ -29,6 +29,7 @@ struct JoyconMapperApp: App {
                     model.start()
                 }
         }
+        .defaultLaunchBehavior(.presented)
 
         MenuBarExtra(menuBarTitle, systemImage: menuBarSystemImage) {
             MenuBarContentView(model: model)
