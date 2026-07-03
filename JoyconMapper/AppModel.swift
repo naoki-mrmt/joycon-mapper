@@ -439,33 +439,11 @@ final class AppModel: ObservableObject {
 
         let previousTrigger = activeTriggerByControlID[input.control.id]
         if previousTrigger != input.triggerID, let previousTrigger {
-            switch profile.action(forTriggerID: previousTrigger) {
-            case .pushToTalk(let shortcut):
-                inputSender.setShortcut(shortcut, isPressed: false)
-            case .modifierHold(let modifiers):
-                inputSender.setModifiers(modifiers, isPressed: false)
-            default:
-                break
-            }
-            activeMouseMoves.removeValue(forKey: previousTrigger)
-            activeScrolls.removeValue(forKey: previousTrigger)
-            activeActionTriggers.remove(previousTrigger)
-            activeTriggerByControlID.removeValue(forKey: input.control.id)
+            releaseTrigger(previousTrigger, controlID: input.control.id)
         }
 
         guard input.isPressed else {
-            switch profile.action(for: input) {
-            case .pushToTalk(let shortcut):
-                inputSender.setShortcut(shortcut, isPressed: false)
-            case .modifierHold(let modifiers):
-                inputSender.setModifiers(modifiers, isPressed: false)
-            default:
-                break
-            }
-            activeMouseMoves.removeValue(forKey: input.triggerID)
-            activeScrolls.removeValue(forKey: input.triggerID)
-            activeActionTriggers.remove(input.triggerID)
-            activeTriggerByControlID.removeValue(forKey: input.control.id)
+            releaseTrigger(input.triggerID, controlID: input.control.id)
             return
         }
 
@@ -503,16 +481,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func releaseTrigger(_ triggerID: String, controlID: String) {
+        switch profile.action(forTriggerID: triggerID) {
+        case .pushToTalk(let shortcut):
+            inputSender.setShortcut(shortcut, isPressed: false)
+        case .modifierHold(let modifiers):
+            inputSender.setModifiers(modifiers, isPressed: false)
+        default:
+            break
+        }
+        activeMouseMoves.removeValue(forKey: triggerID)
+        activeScrolls.removeValue(forKey: triggerID)
+        activeActionTriggers.remove(triggerID)
+        activeTriggerByControlID.removeValue(forKey: controlID)
+    }
+
     private func releaseAllActiveHolds() {
-        for triggerID in activeActionTriggers {
-            switch profile.action(forTriggerID: triggerID) {
-            case .pushToTalk(let shortcut):
-                inputSender.setShortcut(shortcut, isPressed: false)
-            case .modifierHold(let modifiers):
-                inputSender.setModifiers(modifiers, isPressed: false)
-            default:
-                break
-            }
+        for (controlID, triggerID) in activeTriggerByControlID {
+            releaseTrigger(triggerID, controlID: controlID)
         }
         activeActionTriggers.removeAll()
         activeTriggerByControlID.removeAll()
