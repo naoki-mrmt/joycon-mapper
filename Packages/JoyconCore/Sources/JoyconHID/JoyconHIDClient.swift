@@ -54,6 +54,9 @@ public final class JoyconHIDClient {
         IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         self.manager = nil
         devicesByID = [:]
+        reportRegistrationsByDeviceID = [:]
+        buttonStatesByInputID = [:]
+        analogValuesByInputID = [:]
         onDevicesChanged?([])
     }
 
@@ -81,6 +84,9 @@ public final class JoyconHIDClient {
         let snapshot = Self.snapshot(device)
         devicesByID.removeValue(forKey: snapshot.id)
         reportRegistrationsByDeviceID.removeValue(forKey: snapshot.id)
+        let prefix = "\(snapshot.id)|"
+        buttonStatesByInputID = buttonStatesByInputID.filter { !$0.key.hasPrefix(prefix) }
+        analogValuesByInputID = analogValuesByInputID.filter { !$0.key.hasPrefix(prefix) }
         onDevicesChanged?(devicesByID.values.sorted { $0.name < $1.name })
     }
 
