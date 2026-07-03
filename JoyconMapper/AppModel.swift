@@ -479,6 +479,11 @@ final class AppModel: ObservableObject {
             activeActionTriggers.insert(input.triggerID)
             activeTriggerByControlID[input.control.id] = input.triggerID
             inputSender.clickMouse(button)
+        case .mouseHold(let button):
+            guard input.control.kind == .button, !activeActionTriggers.contains(input.triggerID) else { return }
+            activeActionTriggers.insert(input.triggerID)
+            activeTriggerByControlID[input.control.id] = input.triggerID
+            inputSender.setMouseButton(button, isPressed: true)
         case .mouseMove(let deltaX, let deltaY):
             activeMouseMoves[input.triggerID] = (deltaX, deltaY)
             activeActionTriggers.insert(input.triggerID)
@@ -496,6 +501,8 @@ final class AppModel: ObservableObject {
             inputSender.setShortcut(shortcut, isPressed: false)
         case .modifierHold(let modifiers):
             inputSender.setModifiers(modifiers, isPressed: false)
+        case .mouseHold(let button):
+            inputSender.setMouseButton(button, isPressed: false)
         default:
             break
         }

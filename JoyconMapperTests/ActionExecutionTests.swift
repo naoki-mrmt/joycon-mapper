@@ -83,6 +83,39 @@ struct ActionExecutionTests {
         #expect(spy.modifierEvents.last == SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false))
     }
 
+    @Test func mouseHoldPressAndRelease() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.mouseHold(.left), toTriggerID: "joycon.l")
+
+        model.handleTestingInput(.lButton(value: 1))
+        model.handleTestingInput(.lButton(value: 0))
+
+        #expect(spy.mouseButtonEvents == [
+            SpyInputSender.MouseButtonEvent(button: .left, isPressed: true),
+            SpyInputSender.MouseButtonEvent(button: .left, isPressed: false)
+        ])
+    }
+
+    @Test func disablingMapperReleasesHeldMouseButton() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.mouseHold(.left), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.isMapperEnabled = false
+
+        #expect(spy.mouseButtonEvents.last == SpyInputSender.MouseButtonEvent(button: .left, isPressed: false))
+    }
+
+    @Test func deviceDisconnectionReleasesHeldMouseButton() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.mouseHold(.left), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.setTestingDevices([])
+
+        #expect(spy.mouseButtonEvents.last == SpyInputSender.MouseButtonEvent(button: .left, isPressed: false))
+    }
+
     @Test func stopReleasesHeldPushToTalk() async throws {
         let (model, spy) = makeModel()
         model.profile.assign(.pushToTalk(.space), toTriggerID: "joycon.l")

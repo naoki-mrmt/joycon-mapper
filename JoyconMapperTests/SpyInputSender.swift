@@ -13,12 +13,18 @@ final class SpyInputSender: InputSending {
         let isPressed: Bool
     }
 
+    struct MouseButtonEvent: Equatable {
+        let button: MouseClickButton
+        let isPressed: Bool
+    }
+
     var isAccessibilityTrusted = true
     private(set) var requestAccessibilityTrustCount = 0
     private(set) var postedShortcuts: [KeyboardShortcut] = []
     private(set) var shortcutHoldEvents: [ShortcutHoldEvent] = []
     private(set) var modifierEvents: [ModifierEvent] = []
     private(set) var clickedButtons: [MouseClickButton] = []
+    private(set) var mouseButtonEvents: [MouseButtonEvent] = []
     private(set) var mouseMoves: [(deltaX: Double, deltaY: Double)] = []
     private(set) var scrolls: [(deltaX: Double, deltaY: Double)] = []
 
@@ -27,6 +33,7 @@ final class SpyInputSender: InputSending {
             || !shortcutHoldEvents.isEmpty
             || !modifierEvents.isEmpty
             || !clickedButtons.isEmpty
+            || !mouseButtonEvents.isEmpty
             || !mouseMoves.isEmpty
             || !scrolls.isEmpty
     }
@@ -53,6 +60,10 @@ final class SpyInputSender: InputSending {
 
     func clickMouse(_ button: MouseClickButton) {
         clickedButtons.append(button)
+    }
+
+    func setMouseButton(_ button: MouseClickButton, isPressed: Bool) {
+        mouseButtonEvents.append(MouseButtonEvent(button: button, isPressed: isPressed))
     }
 
     func scroll(deltaX: Double, deltaY: Double) {

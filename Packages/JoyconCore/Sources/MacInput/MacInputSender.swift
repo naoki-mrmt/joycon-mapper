@@ -5,6 +5,8 @@ import Foundation
 import JoyconMapping
 
 public final class MacInputSender {
+    private var pressedMouseButtons: Set<MouseClickButton> = []
+
     public init() {}
 
     public var isAccessibilityTrusted: Bool {
@@ -53,8 +55,81 @@ public final class MacInputSender {
 
     public func moveMouse(deltaX: Double, deltaY: Double) {
         let current = CGEvent(source: nil)?.location ?? .zero
-        let target = CGPoint(x: current.x + deltaX, y: current.y - deltaY)
-        CGWarpMouseCursorPosition(target)
+        let target = Self.clampedToDisplays(
+            CGPoint(x: current.x + deltaX, y: current.y - deltaY),
+            displays: Self.activeDisplayBounds()
+        )
+
+        let eventType: CGEventType
+        let eventButton: CGMouseButton
+        if pressedMouseButtons.contains(.left) {
+            eventType = .leftMouseDragged
+            eventButton = .left
+        } else if pressedMouseButtons.contains(.right) {
+            eventType = .rightMouseDragged
+            eventButton = .right
+        } else {
+            eventType = .mouseMoved
+            eventButton = .left
+        }
+
+        CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: target, mouseButton: eventButton)?
+            .post(tap: .cghidEventTap)
+    }
+
+    public func setMouseButton(_ button: MouseClickButton, isPressed: Bool) {
+        let location = CGEvent(source: nil)?.location ?? .zero
+        let cgButton: CGMouseButton
+        let eventType: CGEventType
+
+        switch button {
+        case .left:
+            cgButton = .left
+            eventType = isPressed ? .leftMouseDown : .leftMouseUp
+        case .right:
+            cgButton = .right
+            eventType = isPressed ? .rightMouseDown : .rightMouseUp
+        }
+
+        if isPressed {
+            pressedMouseButtons.insert(button)
+        } else {
+            pressedMouseButtons.remove(button)
+        }
+
+        CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: cgButton)?
+            .post(tap: .cghidEventTap)
+    }
+
+    public static func clampedToDisplays(_ point: CGPoint, displays: [CGRect]) -> CGPoint {
+        guard !displays.isEmpty else { return point }
+        guard !displays.contains(where: { $0.contains(point) }) else { return point }
+
+        var best = point
+        var bestDistance = CGFloat.greatestFiniteMagnitude
+        for rect in displays {
+            let clamped = CGPoint(
+                x: min(max(point.x, rect.minX), rect.maxX - 1),
+                y: min(max(point.y, rect.minY), rect.maxY - 1)
+            )
+            let dx = clamped.x - point.x
+            let dy = clamped.y - point.y
+            let distance = dx * dx + dy * dy
+            if distance < bestDistance {
+                bestDistance = distance
+                best = clamped
+            }
+        }
+        return best
+    }
+
+    private static func activeDisplayBounds() -> [CGRect] {
+        var displayCount: UInt32 = 0
+        CGGetActiveDisplayList(0, nil, &displayCount)
+        guard displayCount > 0 else { return [] }
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+        CGGetActiveDisplayList(displayCount, &displays, &displayCount)
+        return displays.map(CGDisplayBounds)
     }
 
     public func clickMouse(_ button: MouseClickButton) {
