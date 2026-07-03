@@ -22,14 +22,13 @@ struct JoyconMapperApp: App {
     }
 
     var body: some Scene {
-        Window(String(localized: "app.title"), id: "main") {
+        WindowGroup(String(localized: "app.title"), id: "main") {
             ContentView(model: model)
                 .frame(minWidth: 820, minHeight: 560)
                 .onAppear {
                     model.start()
                 }
         }
-        .defaultLaunchBehavior(.presented)
 
         MenuBarExtra(menuBarTitle, systemImage: menuBarSystemImage) {
             MenuBarContentView(model: model)
@@ -82,7 +81,11 @@ struct MenuBarContentView: View {
         Divider()
         Button("app.openWindow") {
             NSApplication.shared.activate(ignoringOtherApps: true)
-            openWindow(id: "main")
+            if let mainWindow = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true }) {
+                mainWindow.makeKeyAndOrderFront(nil)
+            } else {
+                openWindow(id: "main")
+            }
         }
         Divider()
         Toggle("app.mapperEnabled", isOn: $model.isMapperEnabled)
