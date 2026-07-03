@@ -6,4 +6,5 @@ enum Tuning {
     static let inputLogLimit = 80
     static let mouseTicksPerSecond = 120.0
     static let deviceRefreshInterval = 3.0
+    static let accessibilityRefreshInterval = 2.0
 }
