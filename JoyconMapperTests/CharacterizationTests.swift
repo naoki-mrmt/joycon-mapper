@@ -93,6 +93,23 @@ struct CharacterizationTests {
         #expect(destination.activeProfileID == "default")
     }
 
+    @MainActor
+    @Test func loadClampsOutOfRangeMouseSettings() async throws {
+        let suiteName = "JoyconMapper.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults.set(50.0, forKey: "JoyconMapper.MouseSpeed.v1")
+
+        let configuration = AppModel.Configuration(
+            userDefaults: defaults,
+            isHardwareEnabled: false,
+            accessibilityTrustedOverride: true
+        )
+        let model = AppModel(configuration: configuration)
+
+        #expect(model.mouseSpeed == 800)
+    }
+
     // MARK: - Profile CRUD
 
     @MainActor

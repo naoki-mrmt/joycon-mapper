@@ -590,17 +590,17 @@ final class AppModel: ObservableObject {
 
         let storedSpeed = userDefaults.double(forKey: mouseSpeedStoreKey)
         if storedSpeed > 0 {
-            mouseSpeed = storedSpeed
+            mouseSpeed = clamped(storedSpeed, to: Tuning.mouseSpeedRange)
         }
 
         let storedDeadzone = userDefaults.double(forKey: mouseDeadzoneStoreKey)
         if storedDeadzone > 0 {
-            mouseDeadzone = storedDeadzone
+            mouseDeadzone = clamped(storedDeadzone, to: Tuning.mouseDeadzoneRange)
         }
 
         let storedAcceleration = userDefaults.double(forKey: mouseAccelerationStoreKey)
         if storedAcceleration > 0 {
-            mouseAcceleration = storedAcceleration
+            mouseAcceleration = clamped(storedAcceleration, to: Tuning.mouseAccelerationRange)
         }
 
         if userDefaults.object(forKey: mouseYInvertedStoreKey) != nil {
