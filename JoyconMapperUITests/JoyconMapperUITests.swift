@@ -8,10 +8,13 @@ final class JoyconMapperUITests: XCTestCase {
 
     func testLaunchAndInputLogSmokePath() throws {
         let app = XCUIApplication()
-        // Forcing AppleLanguages via launch arguments prevents the main window
-        // from presenting on the macOS 26 CI runner, so the test relies on
-        // locale-independent lookups (identifiers and the shared header title).
-        app.launchArguments = ["--ui-testing"]
+        // Two CI-runner constraints shape this test:
+        // - Forcing AppleLanguages via launch arguments prevents the main
+        //   window from presenting, so lookups are locale-independent.
+        // - Synthesized clicks never reach the app (the window stays
+        //   disabled in the headless session), so the input log sheet is
+        //   opened deterministically via a launch argument instead.
+        app.launchArguments = ["--ui-testing", "--ui-testing-show-input-log"]
         app.launch()
 
         if !app.staticTexts["Joy-Con (L) Mapper"].waitForExistence(timeout: 5) {
@@ -19,23 +22,13 @@ final class JoyconMapperUITests: XCTestCase {
             XCTFail("Header title not found; see hierarchy dump above.")
         }
 
-        let inputLogButton = app.buttons["inputLogButton"]
-        XCTAssertTrue(inputLogButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["inputLogButton"].waitForExistence(timeout: 5))
 
-        // The sheet can miss the first click while the window is still settling
-        // on slow CI runners, so retry until its close button appears.
-        app.activate()
         let closeButton = app.buttons["closeInputLogButton"]
-        var attempts = 0
-        repeat {
-            inputLogButton.click()
-            attempts += 1
-        } while !closeButton.waitForExistence(timeout: 4) && attempts < 4
-
-        if !closeButton.exists {
+        if !closeButton.waitForExistence(timeout: 10) {
             print("=== SHEET DEBUG ===\n\(app.debugDescription)\n=== END SHEET DEBUG ===")
+            XCTFail("Input log sheet did not present; see hierarchy dump above.")
         }
-        XCTAssertTrue(closeButton.exists)
         XCTAssertTrue(app.buttons["clearInputLogButton"].exists)
     }
 }
