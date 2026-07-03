@@ -15,13 +15,23 @@ private typealias MappingKeyboardShortcut = JoyconMapping.KeyboardShortcut
 
 private struct MappingTarget: Identifiable, Hashable {
     let triggerID: String
-    let displayNameKey: String
+    let displayName: String
     let systemImage: String
 
     var id: String { triggerID }
 
-    var displayName: String {
-        String(localized: String.LocalizationValue(displayNameKey))
+    init(triggerID: String, displayNameKey: String, systemImage: String) {
+        self.init(
+            triggerID: triggerID,
+            displayName: String(localized: String.LocalizationValue(displayNameKey)),
+            systemImage: systemImage
+        )
+    }
+
+    init(triggerID: String, displayName: String, systemImage: String) {
+        self.triggerID = triggerID
+        self.displayName = displayName
+        self.systemImage = systemImage
     }
 }
 
@@ -604,7 +614,7 @@ struct ContentView: View {
                 }
                 TableColumn(String(localized: "log.mappedAction")) { input in
                     HStack {
-                        assignmentMenu(for: MappingTarget(triggerID: input.triggerID, displayNameKey: input.triggerDisplayName, systemImage: "smallcircle.filled.circle")) {
+                        assignmentMenu(for: MappingTarget(triggerID: input.triggerID, displayName: input.triggerDisplayName, systemImage: "smallcircle.filled.circle")) {
                             Label(actionDisplayName(model.action(for: input)), systemImage: "slider.horizontal.3")
                         }
                         .menuStyle(.borderlessButton)
