@@ -72,11 +72,6 @@ struct ContentView: View {
         .onAppear {
             isShowingAccessibilityAlert = model.shouldShowAccessibilityPrompt
             model.refreshLaunchAtLoginStatus()
-            // Clicks never reach the app on the headless CI runner, so the UI
-            // smoke test opens the input log through this launch argument.
-            if ProcessInfo.processInfo.arguments.contains("--ui-testing-show-input-log") {
-                isShowingInputLog = true
-            }
         }
         .alert("accessibility.alert.title", isPresented: $isShowingAccessibilityAlert) {
             Button("accessibility.alert.openSettings") {
