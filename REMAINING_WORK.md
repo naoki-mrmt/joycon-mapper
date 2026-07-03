@@ -29,3 +29,4 @@
 - Apple notarytool が `A required agreement is missing or has expired` で失敗しているため、Apple Developer / App Store Connect 側で必要な契約に同意する。
 - 契約同意後に `CODESIGN_IDENTITY="Developer ID Application: Naoki Muramoto (JFWN5K94GG)" NOTARY_PROFILE="joycon-mapper-notary" ./scripts/package-release.sh 0.9.1` を再実行する。
 - notarize 済み zip を `./scripts/verify-release.sh 0.9.1` で検証してから GitHub Release と Homebrew tap 更新へ進む。
+- `gh auth status` が invalid token になっているため、GitHub Release 作成前に `gh auth login -h github.com` で再認証するか、GitHub Web UI から release を作成する。
