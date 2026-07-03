@@ -26,6 +26,7 @@
 "mouse.invertY" = "Invert Y";
 "app.mapperEnabled" = "Mapper Enabled";
 "app.launchAtLogin" = "Launch at Login";
+"app.openWindow" = "Open Settings Window";
 "app.about" = "About Joycon Mapper";
 "app.allowAccessibility" = "Allow Accessibility";
 "app.reconnect" = "Reconnect";
@@ -111,6 +112,8 @@
 "action.group.navigation" = "Navigation";
 "action.leftClick" = "Left Click";
 "action.rightClick" = "Right Click";
+"action.holdLeftClick" = "Hold Left Click (drag)";
+"action.holdRightClick" = "Hold Right Click";
 "action.recordShortcut" = "Record Shortcut…";
 "action.holdModifiers" = "Hold: %@";
 "action.holdCommand" = "Hold Command";

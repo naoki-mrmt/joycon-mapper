@@ -26,6 +26,7 @@
 "mouse.invertY" = "上下を反転";
 "app.mapperEnabled" = "マッパーを有効化";
 "app.launchAtLogin" = "ログイン時に起動";
+"app.openWindow" = "設定ウィンドウを開く";
 "app.about" = "Joycon Mapper について";
 "app.allowAccessibility" = "アクセシビリティを許可";
 "app.reconnect" = "再接続";
@@ -111,6 +112,8 @@
 "action.group.navigation" = "ナビゲーション";
 "action.leftClick" = "左クリック";
 "action.rightClick" = "右クリック";
+"action.holdLeftClick" = "左ボタンを保持(ドラッグ)";
+"action.holdRightClick" = "右ボタンを保持";
 "action.recordShortcut" = "ショートカットを記録…";
 "action.holdModifiers" = "保持: %@";
 "action.holdCommand" = "Command を保持";

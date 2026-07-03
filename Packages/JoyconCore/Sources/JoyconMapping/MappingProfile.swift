@@ -6,6 +6,7 @@ public enum MappingAction: Codable, Equatable, Sendable {
     case modifierHold(KeyboardShortcut.Modifiers)
     case pushToTalk(KeyboardShortcut)
     case mouseClick(MouseClickButton)
+    case mouseHold(MouseClickButton)
     case mouseMove(deltaX: Double, deltaY: Double)
     case scroll(deltaX: Double, deltaY: Double)
 
@@ -21,6 +22,8 @@ public enum MappingAction: Codable, Equatable, Sendable {
             "Hold: \(shortcut.displayName)"
         case .mouseClick(let button):
             "\(button.displayName) Click"
+        case .mouseHold(let button):
+            "Hold: \(button.displayName) Click"
         case .mouseMove(let deltaX, let deltaY):
             if deltaX == 0, deltaY > 0 { "Mouse Up" }
             else if deltaX == 0, deltaY < 0 { "Mouse Down" }

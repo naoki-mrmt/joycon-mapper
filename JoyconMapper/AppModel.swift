@@ -105,6 +105,7 @@ final class AppModel: ObservableObject {
     @Published var isShowingAbout = false
     @Published private(set) var isLaunchAtLoginEnabled = false
     @Published private(set) var launchAtLoginError: String?
+    @Published private(set) var isAccessibilityTrusted = false
     @Published var profile = MappingProfile() {
         didSet {
             guard !isLoadingProfileState else { return }
@@ -127,6 +128,7 @@ final class AppModel: ObservableObject {
     private var isLoadingProfileState = false
     private var mouseTimer: Timer?
     private var deviceRefreshTimer: Timer?
+    private var accessibilityRefreshTimer: Timer?
     private let legacyProfileStoreKey = "JoyconMapper.MappingProfile.v1"
     private let profilesStoreKey = "JoyconMapper.MappingProfiles.v2"
     private let profileOptionsStoreKey = "JoyconMapper.ProfileOptions.v1"
@@ -144,6 +146,7 @@ final class AppModel: ObservableObject {
         self.configuration = configuration
         self.userDefaults = configuration.userDefaults
         self.inputSender = inputSender ?? MacInputSender()
+        self.isAccessibilityTrusted = configuration.accessibilityTrustedOverride ?? self.inputSender.isAccessibilityTrusted
         loadMouseSettings()
         loadProfile()
         refreshLaunchAtLoginStatus()
@@ -159,12 +162,15 @@ final class AppModel: ObservableObject {
         }
     }
 
-    var isAccessibilityTrusted: Bool {
-        configuration.accessibilityTrustedOverride ?? inputSender.isAccessibilityTrusted
-    }
-
     var shouldShowAccessibilityPrompt: Bool {
         !isAccessibilityTrusted
+    }
+
+    func refreshAccessibilityTrust() {
+        let trusted = configuration.accessibilityTrustedOverride ?? inputSender.isAccessibilityTrusted
+        if trusted != isAccessibilityTrusted {
+            isAccessibilityTrusted = trusted
+        }
     }
 
     func start() {
@@ -180,6 +186,7 @@ final class AppModel: ObservableObject {
             lastError = nil
             startMouseTimer()
             startDeviceRefreshTimer()
+            startAccessibilityRefreshTimer()
             requestAccessibilityPermissionIfNeeded()
         } catch {
             lastError = error.localizedDescription
@@ -202,6 +209,8 @@ final class AppModel: ObservableObject {
         mouseTimer = nil
         deviceRefreshTimer?.invalidate()
         deviceRefreshTimer = nil
+        accessibilityRefreshTimer?.invalidate()
+        accessibilityRefreshTimer = nil
         isRunning = false
     }
 
@@ -212,13 +221,13 @@ final class AppModel: ObservableObject {
 
     func requestAccessibilityPermission() {
         guard configuration.accessibilityTrustedOverride == nil else {
-            objectWillChange.send()
+            refreshAccessibilityTrust()
             return
         }
 
         inputSender.requestAccessibilityTrust()
         userDefaults.set(true, forKey: didRequestAccessibilityStoreKey)
-        objectWillChange.send()
+        refreshAccessibilityTrust()
     }
 
     func requestAccessibilityPermissionIfNeeded() {
@@ -470,6 +479,11 @@ final class AppModel: ObservableObject {
             activeActionTriggers.insert(input.triggerID)
             activeTriggerByControlID[input.control.id] = input.triggerID
             inputSender.clickMouse(button)
+        case .mouseHold(let button):
+            guard input.control.kind == .button, !activeActionTriggers.contains(input.triggerID) else { return }
+            activeActionTriggers.insert(input.triggerID)
+            activeTriggerByControlID[input.control.id] = input.triggerID
+            inputSender.setMouseButton(button, isPressed: true)
         case .mouseMove(let deltaX, let deltaY):
             activeMouseMoves[input.triggerID] = (deltaX, deltaY)
             activeActionTriggers.insert(input.triggerID)
@@ -487,6 +501,8 @@ final class AppModel: ObservableObject {
             inputSender.setShortcut(shortcut, isPressed: false)
         case .modifierHold(let modifiers):
             inputSender.setModifiers(modifiers, isPressed: false)
+        case .mouseHold(let button):
+            inputSender.setMouseButton(button, isPressed: false)
         default:
             break
         }
@@ -521,6 +537,15 @@ final class AppModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self, self.isRunning, self.devices.isEmpty else { return }
                 self.hidClient.refreshDevices()
+            }
+        }
+    }
+
+    private func startAccessibilityRefreshTimer() {
+        guard accessibilityRefreshTimer == nil else { return }
+        accessibilityRefreshTimer = Timer.scheduledTimer(withTimeInterval: Tuning.accessibilityRefreshInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshAccessibilityTrust()
             }
         }
     }

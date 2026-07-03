@@ -663,6 +663,12 @@ struct ContentView: View {
                 } label: {
                     Label("action.rightClick", systemImage: "contextualmenu.and.cursorarrow")
                 }
+
+                Button {
+                    model.assign(.mouseHold(.left), to: target.triggerID)
+                } label: {
+                    Label("action.holdLeftClick", systemImage: "cursorarrow.and.square.on.square.dashed")
+                }
             }
 
             Section("action.group.scroll") {
@@ -792,6 +798,13 @@ struct ContentView: View {
                 String(localized: "action.leftClick")
             case .right:
                 String(localized: "action.rightClick")
+            }
+        case .mouseHold(let button):
+            switch button {
+            case .left:
+                String(localized: "action.holdLeftClick")
+            case .right:
+                String(localized: "action.holdRightClick")
             }
         case .mouseMove(let deltaX, let deltaY):
             if deltaX == 0, deltaY > 0 { String(localized: "action.mouseUp") }

@@ -16,10 +16,12 @@ public struct KeyboardShortcut: Codable, Equatable, Hashable, Sendable {
 
     public let key: String
     public let modifiers: Modifiers
+    public let keyCode: Int?
 
-    public init(key: String, modifiers: Modifiers = []) {
+    public init(key: String, modifiers: Modifiers = [], keyCode: Int? = nil) {
         self.key = key
         self.modifiers = modifiers
+        self.keyCode = keyCode
     }
 
     public var displayName: String {

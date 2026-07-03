@@ -8,6 +8,7 @@ public protocol InputSending: AnyObject {
     func setModifiers(_ modifiers: KeyboardShortcut.Modifiers, isPressed: Bool)
     func moveMouse(deltaX: Double, deltaY: Double)
     func clickMouse(_ button: MouseClickButton)
+    func setMouseButton(_ button: MouseClickButton, isPressed: Bool)
     func scroll(deltaX: Double, deltaY: Double)
 }
 
