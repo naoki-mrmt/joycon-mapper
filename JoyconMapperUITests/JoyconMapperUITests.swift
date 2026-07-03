@@ -11,7 +11,10 @@ final class JoyconMapperUITests: XCTestCase {
         app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["Joy-Con (L) Mapper"].waitForExistence(timeout: 5))
+        if !app.staticTexts["Joy-Con (L) Mapper"].waitForExistence(timeout: 5) {
+            print("=== APP HIERARCHY DEBUG ===\n\(app.debugDescription)\n=== END DEBUG ===")
+            XCTFail("Header title not found; see hierarchy dump above.")
+        }
 
         let inputLogButton = app.buttons["inputLogButton"]
         XCTAssertTrue(inputLogButton.waitForExistence(timeout: 5))
