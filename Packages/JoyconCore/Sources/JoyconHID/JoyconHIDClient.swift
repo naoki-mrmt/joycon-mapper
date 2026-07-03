@@ -26,9 +26,7 @@ public final class JoyconHIDClient {
         self.manager = manager
 
         let matchers = [
-            matcher(productID: 0x2006), // Joy-Con (L)
-            matcher(productID: 0x2007), // Joy-Con (R), useful while debugging.
-            matcher(productID: 0x2009)  // Switch Pro Controller.
+            matcher(productID: 0x2006) // Joy-Con (L)
         ] as CFArray
 
         IOHIDManagerSetDeviceMatchingMultiple(manager, matchers)
