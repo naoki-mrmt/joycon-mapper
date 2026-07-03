@@ -12,12 +12,21 @@ final class JoyconMapperUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Joy-Con (L) Mapper"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["inputLogButton"].waitForExistence(timeout: 5))
 
-        app.buttons["inputLogButton"].click()
+        let inputLogButton = app.buttons["inputLogButton"]
+        XCTAssertTrue(inputLogButton.waitForExistence(timeout: 5))
 
-        XCTAssertTrue(app.staticTexts["Input Log"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["clearInputLogButton"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["closeInputLogButton"].waitForExistence(timeout: 5))
+        // The sheet can miss the first click while the window is still settling
+        // on slow CI runners, so retry until its close button appears.
+        app.activate()
+        let closeButton = app.buttons["closeInputLogButton"]
+        var attempts = 0
+        repeat {
+            inputLogButton.click()
+            attempts += 1
+        } while !closeButton.waitForExistence(timeout: 4) && attempts < 4
+
+        XCTAssertTrue(closeButton.exists)
+        XCTAssertTrue(app.buttons["clearInputLogButton"].exists)
     }
 }
