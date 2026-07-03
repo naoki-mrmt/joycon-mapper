@@ -40,7 +40,7 @@ spctl --assess --type execute --verbose=4 /Applications/JoyconMapper.app
 - プロファイルの作成、複製、名前変更、削除
 - キーボードショートカットを録画して割り当て
 - Command、Option、Shift、Option + Command などの修飾キーをホールド
-- 左クリック、右クリック、矢印キー、戻る/進むなどのテンプレート割り当て
+- 左クリック、右クリック、Escape、Return、Tab、Space、Delete などのテンプレート割り当て
 - D-pad やボタンへの縦横スクロール割り当て
 - プロファイルとマウス設定の JSON 書き出し・読み込み
 - プロファイルを初期割り当てに戻す操作
