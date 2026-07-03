@@ -217,7 +217,7 @@ struct ContentView: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $model.mouseSpeed, in: 800...7200, step: 100)
+                    Slider(value: $model.mouseSpeed, in: Tuning.mouseSpeedRange, step: Tuning.mouseSpeedStep)
                 }
             }
 
@@ -503,9 +503,9 @@ struct ContentView: View {
                     .frame(width: 92, height: 92)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    sliderRow("mouse.speed", value: $model.mouseSpeed, range: 800...7200, step: 100)
-                    sliderRow("mouse.deadzone", value: $model.mouseDeadzone, range: 0.05...0.45, step: 0.01)
-                    sliderRow("mouse.acceleration", value: $model.mouseAcceleration, range: 1.0...2.4, step: 0.05)
+                    sliderRow("mouse.speed", value: $model.mouseSpeed, range: Tuning.mouseSpeedRange, step: Tuning.mouseSpeedStep)
+                    sliderRow("mouse.deadzone", value: $model.mouseDeadzone, range: Tuning.mouseDeadzoneRange, step: 0.01)
+                    sliderRow("mouse.acceleration", value: $model.mouseAcceleration, range: Tuning.mouseAccelerationRange, step: 0.05)
                     Toggle("mouse.invertY", isOn: $model.isMouseYInverted)
                 }
             }
@@ -669,25 +669,25 @@ struct ContentView: View {
 
             Section("action.group.scroll") {
                 Button {
-                    model.assign(.scroll(deltaX: 0, deltaY: 14), to: target.triggerID)
+                    model.assign(.scroll(deltaX: 0, deltaY: MappingDefaults.scrollStep), to: target.triggerID)
                 } label: {
                     Label("action.scrollUp", systemImage: "arrow.up")
                 }
 
                 Button {
-                    model.assign(.scroll(deltaX: 0, deltaY: -14), to: target.triggerID)
+                    model.assign(.scroll(deltaX: 0, deltaY: -MappingDefaults.scrollStep), to: target.triggerID)
                 } label: {
                     Label("action.scrollDown", systemImage: "arrow.down")
                 }
 
                 Button {
-                    model.assign(.scroll(deltaX: -14, deltaY: 0), to: target.triggerID)
+                    model.assign(.scroll(deltaX: -MappingDefaults.scrollStep, deltaY: 0), to: target.triggerID)
                 } label: {
                     Label("action.scrollLeft", systemImage: "arrow.left")
                 }
 
                 Button {
-                    model.assign(.scroll(deltaX: 14, deltaY: 0), to: target.triggerID)
+                    model.assign(.scroll(deltaX: MappingDefaults.scrollStep, deltaY: 0), to: target.triggerID)
                 } label: {
                     Label("action.scrollRight", systemImage: "arrow.right")
                 }
@@ -914,7 +914,7 @@ private enum AppInfo {
 
     static var versionDisplay: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.9.1"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
         let build = info?["CFBundleVersion"] as? String
 
         if let build, !build.isEmpty {

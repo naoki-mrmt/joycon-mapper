@@ -22,9 +22,9 @@ public struct ControllerInput: Identifiable, Equatable, Sendable {
         case .hatSwitch:
             "\(control.id).\(hatDirectionKey(value))"
         case .axis:
-            if normalizedValue > 0.55 {
+            if normalizedValue > MappingDefaults.axisTriggerThreshold {
                 "\(control.id).positive"
-            } else if normalizedValue < -0.55 {
+            } else if normalizedValue < -MappingDefaults.axisTriggerThreshold {
                 "\(control.id).negative"
             } else {
                 "\(control.id).center"
@@ -39,9 +39,9 @@ public struct ControllerInput: Identifiable, Equatable, Sendable {
         case .hatSwitch:
             "Hat \(hatDirectionName(value))"
         case .axis:
-            if normalizedValue > 0.55 {
+            if normalizedValue > MappingDefaults.axisTriggerThreshold {
                 "\(control.displayName) +"
-            } else if normalizedValue < -0.55 {
+            } else if normalizedValue < -MappingDefaults.axisTriggerThreshold {
                 "\(control.displayName) -"
             } else {
                 "\(control.displayName) Center"
@@ -58,7 +58,7 @@ public struct ControllerInput: Identifiable, Equatable, Sendable {
         case .hatSwitch:
             value >= 0 && value <= 7
         case .axis:
-            abs(normalizedValue) > 0.55
+            abs(normalizedValue) > MappingDefaults.axisTriggerThreshold
         case .vendorDefined, .unknown:
             value != 0
         }

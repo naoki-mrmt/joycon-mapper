@@ -378,9 +378,9 @@ final class AppModel: ObservableObject {
         isLoadingProfileState = false
 
         isStickMouseEnabled = snapshot.isStickMouseEnabled
-        mouseSpeed = clamped(snapshot.mouseSpeed, to: 800...7200)
-        mouseDeadzone = clamped(snapshot.mouseDeadzone, to: 0.05...0.45)
-        mouseAcceleration = clamped(snapshot.mouseAcceleration, to: 1.0...2.4)
+        mouseSpeed = clamped(snapshot.mouseSpeed, to: Tuning.mouseSpeedRange)
+        mouseDeadzone = clamped(snapshot.mouseDeadzone, to: Tuning.mouseDeadzoneRange)
+        mouseAcceleration = clamped(snapshot.mouseAcceleration, to: Tuning.mouseAccelerationRange)
         isMouseYInverted = snapshot.isMouseYInverted
 
         userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
@@ -407,7 +407,7 @@ final class AppModel: ObservableObject {
 
     func recordTestingInput(_ input: ControllerInput) {
         recentInputs.insert(input, at: 0)
-        recentInputs = Array(recentInputs.prefix(80))
+        recentInputs = Array(recentInputs.prefix(Tuning.inputLogLimit))
     }
 
     func handleTestingInput(_ input: ControllerInput) {
@@ -424,7 +424,7 @@ final class AppModel: ObservableObject {
 
         if recentInputs.first?.triggerID != input.triggerID || recentInputs.first?.value != input.value {
             recentInputs.insert(input, at: 0)
-            recentInputs = Array(recentInputs.prefix(80))
+            recentInputs = Array(recentInputs.prefix(Tuning.inputLogLimit))
         }
     }
 
@@ -536,7 +536,7 @@ final class AppModel: ObservableObject {
 
     private func startMouseTimer() {
         guard mouseTimer == nil else { return }
-        mouseTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
+        mouseTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / Tuning.mouseTicksPerSecond, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.tickMouseMovement()
             }
@@ -545,7 +545,7 @@ final class AppModel: ObservableObject {
 
     private func startDeviceRefreshTimer() {
         guard deviceRefreshTimer == nil else { return }
-        deviceRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+        deviceRefreshTimer = Timer.scheduledTimer(withTimeInterval: Tuning.deviceRefreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.isRunning, self.devices.isEmpty else { return }
                 self.hidClient.refreshDevices()
@@ -592,7 +592,7 @@ final class AppModel: ObservableObject {
         let y = accelerated(isMouseYInverted ? -stickY : stickY)
         guard x != 0 || y != 0 else { return (0, 0) }
 
-        let pixelsPerTick = mouseSpeed / 120.0
+        let pixelsPerTick = mouseSpeed / Tuning.mouseTicksPerSecond
         return (x * pixelsPerTick, y * pixelsPerTick)
     }
 
