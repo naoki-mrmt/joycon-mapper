@@ -8,7 +8,9 @@ final class JoyconMapperUITests: XCTestCase {
 
     func testLaunchAndInputLogSmokePath() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        // Bisect: drop the AppleLanguages launch arguments to test whether they
+        // prevent the main window from presenting on the CI runner.
+        app.launchArguments = ["--ui-testing"]
         app.launch()
 
         if !app.staticTexts["Joy-Con (L) Mapper"].waitForExistence(timeout: 5) {
