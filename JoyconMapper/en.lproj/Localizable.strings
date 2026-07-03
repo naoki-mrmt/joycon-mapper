@@ -95,13 +95,6 @@
 "target.dpadDown" = "D-pad Down";
 "target.dpadLeft" = "D-pad Left";
 "target.dpadRight" = "D-pad Right";
-"mapping.title" = "Selected Input";
-"mapping.zoomMute" = "Zoom Mute";
-"mapping.meetMute" = "Meet Mute";
-"mapping.discordMute" = "Discord Mute";
-"mapping.pushToTalk" = "Push to Talk";
-"mapping.lastInput" = "Last input";
-"mapping.empty" = "Connect Joy-Con (L), then press any button.";
 "log.title" = "Input Log";
 "log.open" = "Input Log";
 "log.clear" = "Clear";

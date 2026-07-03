@@ -210,10 +210,6 @@ final class AppModel: ObservableObject {
         start()
     }
 
-    func refreshPermissions() {
-        objectWillChange.send()
-    }
-
     func requestAccessibilityPermission() {
         guard configuration.accessibilityTrustedOverride == nil else {
             objectWillChange.send()
@@ -248,11 +244,6 @@ final class AppModel: ObservableObject {
             launchAtLoginError = error.localizedDescription
             refreshLaunchAtLoginStatus()
         }
-    }
-
-    func assignLastInput(_ action: MappingAction) {
-        guard let input = recentInputs.first, input.isPressed else { return }
-        profile.assign(action, toTriggerID: input.triggerID)
     }
 
     func assign(_ action: MappingAction, to triggerID: String) {
@@ -390,10 +381,6 @@ final class AppModel: ObservableObject {
 
     func profileDisplayName(for id: String) -> String {
         profileOptions.first(where: { $0.id == id })?.name ?? Self.defaultProfileOptions.first?.name ?? "Default"
-    }
-
-    func installJoyConLeftMouseDefaults() {
-        profile.removeDPadMouseDefaults()
     }
 
     func action(for input: ControllerInput) -> MappingAction {

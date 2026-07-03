@@ -95,13 +95,6 @@
 "target.dpadDown" = "方向ボタン 下";
 "target.dpadLeft" = "方向ボタン 左";
 "target.dpadRight" = "方向ボタン 右";
-"mapping.title" = "選択中の入力";
-"mapping.zoomMute" = "Zoom ミュート";
-"mapping.meetMute" = "Meet ミュート";
-"mapping.discordMute" = "Discord ミュート";
-"mapping.pushToTalk" = "プッシュトゥトーク";
-"mapping.lastInput" = "最後の入力";
-"mapping.empty" = "Joy-Con (L) を接続して、いずれかのボタンを押してください。";
 "log.title" = "入力ログ";
 "log.open" = "入力ログ";
 "log.clear" = "クリア";

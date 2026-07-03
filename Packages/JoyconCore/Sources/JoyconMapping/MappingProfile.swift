@@ -75,10 +75,6 @@ public struct MappingProfile: Codable, Equatable, Sendable {
         assignments[triggerID] ?? .none
     }
 
-    public mutating func assign(_ action: MappingAction, to input: ControllerInput) {
-        assignments[input.triggerID] = action
-    }
-
     public mutating func assign(_ action: MappingAction, toTriggerID triggerID: String) {
         switch action {
         case .none:
@@ -86,10 +82,6 @@ public struct MappingProfile: Codable, Equatable, Sendable {
         default:
             assignments[triggerID] = action
         }
-    }
-
-    public mutating func installJoyConLeftMouseDefaults() {
-        removeDPadMouseDefaults()
     }
 
     public mutating func removeDPadMouseDefaults() {
