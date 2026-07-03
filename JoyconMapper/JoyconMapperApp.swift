@@ -10,7 +10,16 @@ import SwiftUI
 
 @main
 struct JoyconMapperApp: App {
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
+
+    init() {
+        let processInfo = ProcessInfo.processInfo
+        let isUITesting = processInfo.arguments.contains("--ui-testing")
+            || processInfo.environment["JOYCON_MAPPER_TESTING"] == "1"
+        _model = StateObject(wrappedValue: AppModel(
+            configuration: isUITesting ? .testing(suiteName: "JoyconMapper.UITests") : .live
+        ))
+    }
 
     var body: some Scene {
         WindowGroup {

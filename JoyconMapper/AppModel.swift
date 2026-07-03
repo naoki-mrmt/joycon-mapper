@@ -7,6 +7,33 @@ import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
+    struct Configuration {
+        var userDefaults: UserDefaults
+        var isHardwareEnabled: Bool
+        var accessibilityTrustedOverride: Bool?
+
+        nonisolated static var live: Configuration {
+            Configuration(
+                userDefaults: .standard,
+                isHardwareEnabled: true,
+                accessibilityTrustedOverride: nil
+            )
+        }
+
+        nonisolated static func testing(
+            suiteName: String = "JoyconMapper.Tests.\(UUID().uuidString)",
+            accessibilityTrusted: Bool = true
+        ) -> Configuration {
+            let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+            defaults.removePersistentDomain(forName: suiteName)
+            return Configuration(
+                userDefaults: defaults,
+                isHardwareEnabled: false,
+                accessibilityTrustedOverride: accessibilityTrusted
+            )
+        }
+    }
+
     struct ProfileOption: Identifiable, Hashable, Codable {
         let id: String
         var name: String
@@ -35,22 +62,22 @@ final class AppModel: ObservableObject {
 
     @Published var isMapperEnabled = true
     @Published var isStickMouseEnabled = true {
-        didSet { UserDefaults.standard.set(isStickMouseEnabled, forKey: stickMouseEnabledStoreKey) }
+        didSet { userDefaults.set(isStickMouseEnabled, forKey: stickMouseEnabledStoreKey) }
     }
     @Published var mouseSpeed: Double = 4200 {
-        didSet { UserDefaults.standard.set(mouseSpeed, forKey: mouseSpeedStoreKey) }
+        didSet { userDefaults.set(mouseSpeed, forKey: mouseSpeedStoreKey) }
     }
     @Published var mouseDeadzone: Double = 0.16 {
-        didSet { UserDefaults.standard.set(mouseDeadzone, forKey: mouseDeadzoneStoreKey) }
+        didSet { userDefaults.set(mouseDeadzone, forKey: mouseDeadzoneStoreKey) }
     }
     @Published var mouseAcceleration: Double = 1.45 {
-        didSet { UserDefaults.standard.set(mouseAcceleration, forKey: mouseAccelerationStoreKey) }
+        didSet { userDefaults.set(mouseAcceleration, forKey: mouseAccelerationStoreKey) }
     }
     @Published var isMouseYInverted = false {
-        didSet { UserDefaults.standard.set(isMouseYInverted, forKey: mouseYInvertedStoreKey) }
+        didSet { userDefaults.set(isMouseYInverted, forKey: mouseYInvertedStoreKey) }
     }
     @Published var isOnboardingCompleted = false {
-        didSet { UserDefaults.standard.set(isOnboardingCompleted, forKey: onboardingCompletedStoreKey) }
+        didSet { userDefaults.set(isOnboardingCompleted, forKey: onboardingCompletedStoreKey) }
     }
     @Published private(set) var profileOptions = AppModel.defaultProfileOptions
     @Published var activeProfileID = "default" {
@@ -58,7 +85,7 @@ final class AppModel: ObservableObject {
             guard oldValue != activeProfileID else { return }
             guard !isLoadingProfileState else { return }
             profiles[oldValue] = profile
-            UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
+            userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
             profile = profiles[activeProfileID] ?? .joyConLeftDefault
             saveProfiles()
         }
@@ -83,6 +110,8 @@ final class AppModel: ObservableObject {
 
     private let hidClient = JoyconHIDClient()
     private let inputSender = MacInputSender()
+    private let configuration: Configuration
+    private let userDefaults: UserDefaults
     private var activeActionTriggers: Set<String> = []
     private var activeTriggerByControlID: [String: String] = [:]
     private var activeMouseMoves: [String: (deltaX: Double, deltaY: Double)] = [:]
@@ -106,7 +135,9 @@ final class AppModel: ObservableObject {
     private let onboardingCompletedStoreKey = "JoyconMapper.OnboardingCompleted.v1"
     private let settingsExportFormatVersion = 1
 
-    init() {
+    init(configuration: Configuration = .live) {
+        self.configuration = configuration
+        self.userDefaults = configuration.userDefaults
         loadMouseSettings()
         loadProfile()
         refreshLaunchAtLoginStatus()
@@ -123,7 +154,7 @@ final class AppModel: ObservableObject {
     }
 
     var isAccessibilityTrusted: Bool {
-        inputSender.isAccessibilityTrusted
+        configuration.accessibilityTrustedOverride ?? inputSender.isAccessibilityTrusted
     }
 
     var shouldShowAccessibilityPrompt: Bool {
@@ -131,6 +162,12 @@ final class AppModel: ObservableObject {
     }
 
     func start() {
+        guard configuration.isHardwareEnabled else {
+            isRunning = true
+            lastError = nil
+            return
+        }
+
         do {
             try hidClient.start()
             isRunning = true
@@ -145,6 +182,14 @@ final class AppModel: ObservableObject {
     }
 
     func stop() {
+        guard configuration.isHardwareEnabled else {
+            activeMouseMoves.removeAll()
+            activeScrolls.removeAll()
+            pressedTriggerIDs.removeAll()
+            isRunning = false
+            return
+        }
+
         hidClient.stop()
         activeMouseMoves.removeAll()
         activeScrolls.removeAll()
@@ -166,14 +211,19 @@ final class AppModel: ObservableObject {
     }
 
     func requestAccessibilityPermission() {
+        guard configuration.accessibilityTrustedOverride == nil else {
+            objectWillChange.send()
+            return
+        }
+
         inputSender.requestAccessibilityTrust()
-        UserDefaults.standard.set(true, forKey: didRequestAccessibilityStoreKey)
+        userDefaults.set(true, forKey: didRequestAccessibilityStoreKey)
         objectWillChange.send()
     }
 
     func requestAccessibilityPermissionIfNeeded() {
         guard !isAccessibilityTrusted else { return }
-        guard !UserDefaults.standard.bool(forKey: didRequestAccessibilityStoreKey) else { return }
+        guard !userDefaults.bool(forKey: didRequestAccessibilityStoreKey) else { return }
         requestAccessibilityPermission()
     }
 
@@ -258,7 +308,7 @@ final class AppModel: ObservableObject {
         activeProfileID = nextProfileID
         profile = profiles[nextProfileID] ?? .joyConLeftDefault
         isLoadingProfileState = false
-        UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
+        userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
         saveProfileOptions()
         saveProfiles()
     }
@@ -329,7 +379,7 @@ final class AppModel: ObservableObject {
         mouseAcceleration = clamped(snapshot.mouseAcceleration, to: 1.0...2.4)
         isMouseYInverted = snapshot.isMouseYInverted
 
-        UserDefaults.standard.set(activeProfileID, forKey: activeProfileStoreKey)
+        userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
         saveProfileOptions()
         saveProfiles()
     }
@@ -345,6 +395,17 @@ final class AppModel: ObservableObject {
     func action(for input: ControllerInput) -> MappingAction {
         profile.action(for: input)
     }
+
+#if DEBUG
+    func setTestingDevices(_ devices: [JoyconDevice]) {
+        handleDevicesChanged(devices)
+    }
+
+    func recordTestingInput(_ input: ControllerInput) {
+        recentInputs.insert(input, at: 0)
+        recentInputs = Array(recentInputs.prefix(80))
+    }
+#endif
 
     private func handle(_ input: ControllerInput) {
         updateStickMouseState(with: input)
@@ -527,29 +588,29 @@ final class AppModel: ObservableObject {
     }
 
     private func loadMouseSettings() {
-        isOnboardingCompleted = UserDefaults.standard.bool(forKey: onboardingCompletedStoreKey)
+        isOnboardingCompleted = userDefaults.bool(forKey: onboardingCompletedStoreKey)
 
-        if UserDefaults.standard.object(forKey: stickMouseEnabledStoreKey) != nil {
-            isStickMouseEnabled = UserDefaults.standard.bool(forKey: stickMouseEnabledStoreKey)
+        if userDefaults.object(forKey: stickMouseEnabledStoreKey) != nil {
+            isStickMouseEnabled = userDefaults.bool(forKey: stickMouseEnabledStoreKey)
         }
 
-        let storedSpeed = UserDefaults.standard.double(forKey: mouseSpeedStoreKey)
+        let storedSpeed = userDefaults.double(forKey: mouseSpeedStoreKey)
         if storedSpeed > 0 {
             mouseSpeed = storedSpeed
         }
 
-        let storedDeadzone = UserDefaults.standard.double(forKey: mouseDeadzoneStoreKey)
+        let storedDeadzone = userDefaults.double(forKey: mouseDeadzoneStoreKey)
         if storedDeadzone > 0 {
             mouseDeadzone = storedDeadzone
         }
 
-        let storedAcceleration = UserDefaults.standard.double(forKey: mouseAccelerationStoreKey)
+        let storedAcceleration = userDefaults.double(forKey: mouseAccelerationStoreKey)
         if storedAcceleration > 0 {
             mouseAcceleration = storedAcceleration
         }
 
-        if UserDefaults.standard.object(forKey: mouseYInvertedStoreKey) != nil {
-            isMouseYInverted = UserDefaults.standard.bool(forKey: mouseYInvertedStoreKey)
+        if userDefaults.object(forKey: mouseYInvertedStoreKey) != nil {
+            isMouseYInverted = userDefaults.bool(forKey: mouseYInvertedStoreKey)
         }
     }
 
@@ -560,10 +621,10 @@ final class AppModel: ObservableObject {
         var loadedProfiles: [String: MappingProfile] = [:]
         let loadedOptions = loadProfileOptions()
 
-        if let data = UserDefaults.standard.data(forKey: profilesStoreKey),
+        if let data = userDefaults.data(forKey: profilesStoreKey),
            let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
             loadedProfiles = decoded
-        } else if let data = UserDefaults.standard.data(forKey: legacyProfileStoreKey),
+        } else if let data = userDefaults.data(forKey: legacyProfileStoreKey),
                   let decoded = try? JSONDecoder().decode(MappingProfile.self, from: data) {
             loadedProfiles["default"] = decoded
         }
@@ -578,7 +639,7 @@ final class AppModel: ObservableObject {
 
         profiles = loadedProfiles
         profileOptions = loadedOptions
-        let storedProfileID = UserDefaults.standard.string(forKey: activeProfileStoreKey) ?? "default"
+        let storedProfileID = userDefaults.string(forKey: activeProfileStoreKey) ?? "default"
         activeProfileID = loadedOptions.contains(where: { $0.id == storedProfileID }) ? storedProfileID : loadedOptions[0].id
         profile = profiles[activeProfileID] ?? .joyConLeftDefault
         saveProfileOptions()
@@ -587,11 +648,11 @@ final class AppModel: ObservableObject {
 
     private func saveProfiles() {
         guard let data = try? JSONEncoder().encode(profiles) else { return }
-        UserDefaults.standard.set(data, forKey: profilesStoreKey)
+        userDefaults.set(data, forKey: profilesStoreKey)
     }
 
     private func loadProfileOptions() -> [ProfileOption] {
-        if let data = UserDefaults.standard.data(forKey: profileOptionsStoreKey),
+        if let data = userDefaults.data(forKey: profileOptionsStoreKey),
            let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data),
            !decoded.isEmpty {
             return mergedProfileOptions(decoded)
@@ -610,7 +671,7 @@ final class AppModel: ObservableObject {
 
     private func saveProfileOptions() {
         guard let data = try? JSONEncoder().encode(profileOptions) else { return }
-        UserDefaults.standard.set(data, forKey: profileOptionsStoreKey)
+        userDefaults.set(data, forKey: profileOptionsStoreKey)
     }
 
     private func normalizedProfileName(_ name: String, fallback: String) -> String {
@@ -631,7 +692,7 @@ final class AppModel: ObservableObject {
     }
 }
 
-enum SettingsImportError: LocalizedError {
+enum SettingsImportError: LocalizedError, Equatable {
     case emptyFile
     case invalidFormat
     case unsupportedVersion(Int)

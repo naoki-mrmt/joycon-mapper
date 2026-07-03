@@ -1,0 +1,6 @@
+hat.57.down: Scroll Down
+hat.57.left: Scroll Left
+hat.57.right: Scroll Right
+hat.57.up: Scroll Up
+joycon.leftStick: Left Click
+joycon.zl: Right Click

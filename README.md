@@ -122,7 +122,21 @@ CI と同じ確認:
 ./scripts/ci-check.sh
 ```
 
-このプロジェクトの正式な自動テスト対象は `JoyconMapperTests` です。UI テストターゲットは Xcode 生成時の雛形として残していますが、ローカル/CI の合格条件には含めていません。
+CI では unit test、snapshot test、UI smoke test、Release build を実行します。
+ローカルで UI smoke test まで回したい場合は `RUN_UI_TESTS=1 ./scripts/ci-check.sh` を使います。
+
+Snapshot を意図的に更新する場合:
+
+```sh
+SNAPSHOT_TESTING_RECORD=all xcodebuild \
+  -project JoyconMapper.xcodeproj \
+  -scheme JoyconMapper \
+  -configuration Debug \
+  -derivedDataPath .build/xcode-ci-test \
+  CODE_SIGNING_ALLOWED=NO \
+  -only-testing:JoyconMapperTests \
+  test
+```
 
 ## Release
 

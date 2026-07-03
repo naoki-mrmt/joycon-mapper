@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+@testable import JoyconMapper
 import JoyconMapping
 
 struct JoyconMapperTests {
@@ -38,5 +39,60 @@ struct JoyconMapperTests {
 
         #expect(profile.action(forTriggerID: "joycon.zl") == .none)
         #expect(profile.assignments.isEmpty)
+    }
+
+    @MainActor
+    @Test func clearRecentInputsRemovesInputLogEntries() async throws {
+        let model = AppModel(configuration: .testing())
+        model.recordTestingInput(.zlButton)
+
+        #expect(model.recentInputs.count == 1)
+
+        model.clearRecentInputs()
+
+        #expect(model.recentInputs.isEmpty)
+    }
+
+    @MainActor
+    @Test func importingEmptySettingsReportsSpecificError() async throws {
+        let model = AppModel(configuration: .testing())
+
+        do {
+            try model.importSettingsData(Data())
+            Issue.record("Expected empty file import to fail.")
+        } catch let error as SettingsImportError {
+            #expect(error == .emptyFile)
+        }
+    }
+
+    @MainActor
+    @Test func importingInvalidSettingsReportsSpecificError() async throws {
+        let model = AppModel(configuration: .testing())
+
+        do {
+            try model.importSettingsData(Data("not json".utf8))
+            Issue.record("Expected invalid JSON import to fail.")
+        } catch let error as SettingsImportError {
+            #expect(error == .invalidFormat)
+        }
+    }
+}
+
+private extension ControllerInput {
+    static var zlButton: ControllerInput {
+        ControllerInput(
+            deviceID: "test-left",
+            deviceName: "Joy-Con (L)",
+            control: ControllerControl(
+                id: "joycon.zl",
+                displayName: "ZL",
+                kind: .button,
+                usagePage: 0x09,
+                usage: 0x0E
+            ),
+            value: 1,
+            normalizedValue: 1,
+            timestamp: Date(timeIntervalSince1970: 0)
+        )
     }
 }

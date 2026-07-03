@@ -152,6 +152,7 @@ struct ContentView: View {
         } message: {
             Text(settingsAlertMessage ?? "")
         }
+        .accessibilityIdentifier("contentView")
     }
 
     private var sidebar: some View {
@@ -281,6 +282,7 @@ struct ContentView: View {
                         Label("log.open", systemImage: "list.bullet.rectangle")
                     }
                     .controlSize(.small)
+                    .accessibilityIdentifier("inputLogButton")
                 }
             }
         }
@@ -579,10 +581,12 @@ struct ContentView: View {
                     model.clearRecentInputs()
                 }
                 .disabled(model.recentInputs.isEmpty)
+                .accessibilityIdentifier("clearInputLogButton")
                 Button("log.close") {
                     isShowingInputLog = false
                 }
                 .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("closeInputLogButton")
             }
 
             Table(model.recentInputs, selection: $selectedInputID) {
@@ -623,6 +627,7 @@ struct ContentView: View {
         }
         .padding(20)
         .frame(minWidth: 780, minHeight: 480)
+        .accessibilityIdentifier("inputLogSheet")
     }
 
     private func assignmentMenu<LabelContent: View>(
@@ -899,7 +904,7 @@ private enum AppInfo {
 
     static var versionDisplay: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.9.0"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0.9.1"
         let build = info?["CFBundleVersion"] as? String
 
         if let build, !build.isEmpty {
