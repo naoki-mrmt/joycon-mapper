@@ -109,7 +109,7 @@ final class AppModel: ObservableObject {
     }
 
     private let hidClient = JoyconHIDClient()
-    private let inputSender = MacInputSender()
+    private let inputSender: any InputSending
     private let configuration: Configuration
     private let userDefaults: UserDefaults
     private var activeActionTriggers: Set<String> = []
@@ -135,9 +135,10 @@ final class AppModel: ObservableObject {
     private let onboardingCompletedStoreKey = "JoyconMapper.OnboardingCompleted.v1"
     private let settingsExportFormatVersion = 1
 
-    init(configuration: Configuration = .live) {
+    init(configuration: Configuration = .live, inputSender: (any InputSending)? = nil) {
         self.configuration = configuration
         self.userDefaults = configuration.userDefaults
+        self.inputSender = inputSender ?? MacInputSender()
         loadMouseSettings()
         loadProfile()
         refreshLaunchAtLoginStatus()
@@ -404,6 +405,10 @@ final class AppModel: ObservableObject {
     func recordTestingInput(_ input: ControllerInput) {
         recentInputs.insert(input, at: 0)
         recentInputs = Array(recentInputs.prefix(80))
+    }
+
+    func handleTestingInput(_ input: ControllerInput) {
+        handle(input)
     }
 #endif
 

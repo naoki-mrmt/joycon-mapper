@@ -1,0 +1,90 @@
+import Testing
+import Foundation
+@testable import JoyconMapper
+import JoyconMapping
+
+@MainActor
+struct ActionExecutionTests {
+
+    @Test func keyboardShortcutFiresOncePerPress() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.keyboardShortcut(.escape), toTriggerID: "joycon.l")
+
+        model.handleTestingInput(.lButton(value: 1))
+        model.handleTestingInput(.lButton(value: 1))
+        model.handleTestingInput(.lButton(value: 0))
+
+        #expect(spy.postedShortcuts == [.escape])
+    }
+
+    @Test func modifierHoldPressAndRelease() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+
+        model.handleTestingInput(.lButton(value: 1))
+        model.handleTestingInput(.lButton(value: 0))
+
+        #expect(spy.modifierEvents == [
+            SpyInputSender.ModifierEvent(modifiers: .command, isPressed: true),
+            SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false)
+        ])
+    }
+
+    @Test func pushToTalkHoldsWhilePressed() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.pushToTalk(.space), toTriggerID: "joycon.l")
+
+        model.handleTestingInput(.lButton(value: 1))
+        model.handleTestingInput(.lButton(value: 0))
+
+        #expect(spy.shortcutHoldEvents == [
+            SpyInputSender.ShortcutHoldEvent(shortcut: .space, isPressed: true),
+            SpyInputSender.ShortcutHoldEvent(shortcut: .space, isPressed: false)
+        ])
+    }
+
+    @Test func mouseClickFiresOnPress() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.mouseClick(.left), toTriggerID: "joycon.l")
+
+        model.handleTestingInput(.lButton(value: 1))
+        model.handleTestingInput(.lButton(value: 0))
+
+        #expect(spy.clickedButtons == [.left])
+    }
+
+    @Test func disabledMapperExecutesNothing() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.keyboardShortcut(.escape), toTriggerID: "joycon.l")
+        model.isMapperEnabled = false
+
+        model.handleTestingInput(.lButton(value: 1))
+
+        #expect(spy.hasRecordedAnything == false)
+    }
+
+    private func makeModel() -> (AppModel, SpyInputSender) {
+        let spy = SpyInputSender()
+        let model = AppModel(configuration: .testing(), inputSender: spy)
+        return (model, spy)
+    }
+}
+
+private extension ControllerInput {
+    static func lButton(value: Int) -> ControllerInput {
+        ControllerInput(
+            deviceID: "test-left",
+            deviceName: "Joy-Con (L)",
+            control: ControllerControl(
+                id: "joycon.l",
+                displayName: "L",
+                kind: .button,
+                usagePage: 0xFF01,
+                usage: 0
+            ),
+            value: value,
+            normalizedValue: Double(value),
+            timestamp: Date(timeIntervalSince1970: 0)
+        )
+    }
+}
