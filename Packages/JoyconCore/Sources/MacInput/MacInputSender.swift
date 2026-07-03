@@ -18,15 +18,19 @@ public final class MacInputSender {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
+    public static func resolvedKeyCode(for shortcut: KeyboardShortcut) -> CGKeyCode? {
+        shortcut.keyCode.map(CGKeyCode.init) ?? KeyCodeMap.code(for: shortcut.key)
+    }
+
     public func post(shortcut: KeyboardShortcut) {
-        guard let keyCode = KeyCodeMap.code(for: shortcut.key) else { return }
+        guard let keyCode = Self.resolvedKeyCode(for: shortcut) else { return }
 
         postKey(keyCode, isDown: true, modifiers: shortcut.modifiers)
         postKey(keyCode, isDown: false, modifiers: shortcut.modifiers)
     }
 
     public func setShortcut(_ shortcut: KeyboardShortcut, isPressed: Bool) {
-        guard let keyCode = KeyCodeMap.code(for: shortcut.key) else { return }
+        guard let keyCode = Self.resolvedKeyCode(for: shortcut) else { return }
         postKey(keyCode, isDown: isPressed, modifiers: shortcut.modifiers)
     }
 

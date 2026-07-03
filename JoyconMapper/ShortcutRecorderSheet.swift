@@ -124,7 +124,7 @@ fileprivate extension MappingKeyboardShortcut {
             return nil
         }
 
-        self.init(key: key, modifiers: .init(event: event))
+        self.init(key: key, modifiers: .init(event: event), keyCode: Int(event.keyCode))
     }
 }
 
