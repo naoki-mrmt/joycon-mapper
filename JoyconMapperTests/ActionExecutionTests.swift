@@ -63,6 +63,36 @@ struct ActionExecutionTests {
         #expect(spy.hasRecordedAnything == false)
     }
 
+    @Test func disablingMapperReleasesHeldModifiers() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.isMapperEnabled = false
+
+        #expect(spy.modifierEvents.last == SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false))
+    }
+
+    @Test func deviceDisconnectionReleasesHeldModifiers() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.setTestingDevices([])
+
+        #expect(spy.modifierEvents.last == SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false))
+    }
+
+    @Test func stopReleasesHeldPushToTalk() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.pushToTalk(.space), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.stop()
+
+        #expect(spy.shortcutHoldEvents.last == SpyInputSender.ShortcutHoldEvent(shortcut: .space, isPressed: false))
+    }
+
     private func makeModel() -> (AppModel, SpyInputSender) {
         let spy = SpyInputSender()
         let model = AppModel(configuration: .testing(), inputSender: spy)

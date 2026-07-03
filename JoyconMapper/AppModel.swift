@@ -60,7 +60,12 @@ final class AppModel: ObservableObject {
         ProfileOption(id: "meeting", name: "Meeting", nameKey: "profile.meeting", isBuiltIn: true)
     ]
 
-    @Published var isMapperEnabled = true
+    @Published var isMapperEnabled = true {
+        didSet {
+            guard oldValue != isMapperEnabled, !isMapperEnabled else { return }
+            releaseAllActiveHolds()
+        }
+    }
     @Published var isStickMouseEnabled = true {
         didSet { userDefaults.set(isStickMouseEnabled, forKey: stickMouseEnabledStoreKey) }
     }
@@ -184,16 +189,14 @@ final class AppModel: ObservableObject {
 
     func stop() {
         guard configuration.isHardwareEnabled else {
-            activeMouseMoves.removeAll()
-            activeScrolls.removeAll()
+            releaseAllActiveHolds()
             pressedTriggerIDs.removeAll()
             isRunning = false
             return
         }
 
         hidClient.stop()
-        activeMouseMoves.removeAll()
-        activeScrolls.removeAll()
+        releaseAllActiveHolds()
         pressedTriggerIDs.removeAll()
         mouseTimer?.invalidate()
         mouseTimer = nil
@@ -428,11 +431,8 @@ final class AppModel: ObservableObject {
     private func handleDevicesChanged(_ devices: [JoyconDevice]) {
         self.devices = devices
         guard devices.isEmpty else { return }
-        activeMouseMoves.removeAll()
-        activeScrolls.removeAll()
+        releaseAllActiveHolds()
         pressedTriggerIDs.removeAll()
-        activeActionTriggers.removeAll()
-        activeTriggerByControlID.removeAll()
         stickX = 0
         stickY = 0
         visibleStickX = 0
@@ -515,6 +515,23 @@ final class AppModel: ObservableObject {
             activeActionTriggers.insert(input.triggerID)
             activeTriggerByControlID[input.control.id] = input.triggerID
         }
+    }
+
+    private func releaseAllActiveHolds() {
+        for triggerID in activeActionTriggers {
+            switch profile.action(forTriggerID: triggerID) {
+            case .pushToTalk(let shortcut):
+                inputSender.setShortcut(shortcut, isPressed: false)
+            case .modifierHold(let modifiers):
+                inputSender.setModifiers(modifiers, isPressed: false)
+            default:
+                break
+            }
+        }
+        activeActionTriggers.removeAll()
+        activeTriggerByControlID.removeAll()
+        activeMouseMoves.removeAll()
+        activeScrolls.removeAll()
     }
 
     private func startMouseTimer() {
