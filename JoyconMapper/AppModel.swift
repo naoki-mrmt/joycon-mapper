@@ -350,9 +350,8 @@ final class AppModel: ObservableObject {
             throw SettingsImportError.unsupportedVersion(snapshot.formatVersion)
         }
 
-        let options = mergedProfileOptions(snapshot.profileOptions).isEmpty
-            ? Self.defaultProfileOptions
-            : mergedProfileOptions(snapshot.profileOptions)
+        let merged = mergedProfileOptions(snapshot.profileOptions)
+        let options = merged.isEmpty ? Self.defaultProfileOptions : merged
 
         var importedProfiles = snapshot.profiles
         for option in options where importedProfiles[option.id] == nil {
