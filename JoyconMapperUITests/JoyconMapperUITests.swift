@@ -8,8 +8,9 @@ final class JoyconMapperUITests: XCTestCase {
 
     func testLaunchAndInputLogSmokePath() throws {
         let app = XCUIApplication()
-        // Bisect: drop the AppleLanguages launch arguments to test whether they
-        // prevent the main window from presenting on the CI runner.
+        // Forcing AppleLanguages via launch arguments prevents the main window
+        // from presenting on the macOS 26 CI runner, so the test relies on
+        // locale-independent lookups (identifiers and the shared header title).
         app.launchArguments = ["--ui-testing"]
         app.launch()
 
@@ -31,6 +32,9 @@ final class JoyconMapperUITests: XCTestCase {
             attempts += 1
         } while !closeButton.waitForExistence(timeout: 4) && attempts < 4
 
+        if !closeButton.exists {
+            print("=== SHEET DEBUG ===\n\(app.debugDescription)\n=== END SHEET DEBUG ===")
+        }
         XCTAssertTrue(closeButton.exists)
         XCTAssertTrue(app.buttons["clearInputLogButton"].exists)
     }
