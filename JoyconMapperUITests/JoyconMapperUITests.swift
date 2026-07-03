@@ -8,11 +8,7 @@ final class JoyconMapperUITests: XCTestCase {
 
     func testLaunchAndInputLogSmokePath() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing"]
-        app.launchEnvironment = [
-            "AppleLanguages": "(en)",
-            "AppleLocale": "en_US"
-        ]
+        app.launchArguments = ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Joy-Con (L) Mapper"].waitForExistence(timeout: 5))

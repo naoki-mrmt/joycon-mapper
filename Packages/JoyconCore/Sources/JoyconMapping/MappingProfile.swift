@@ -60,10 +60,10 @@ public struct MappingProfile: Codable, Equatable, Sendable {
         MappingProfile(assignments: [
             "joycon.leftStick": .mouseClick(.left),
             "joycon.zl": .mouseClick(.right),
-            "hat.57.up": .scroll(deltaX: 0, deltaY: 14),
-            "hat.57.down": .scroll(deltaX: 0, deltaY: -14),
-            "hat.57.left": .scroll(deltaX: -14, deltaY: 0),
-            "hat.57.right": .scroll(deltaX: 14, deltaY: 0)
+            "hat.57.up": .scroll(deltaX: 0, deltaY: MappingDefaults.scrollStep),
+            "hat.57.down": .scroll(deltaX: 0, deltaY: -MappingDefaults.scrollStep),
+            "hat.57.left": .scroll(deltaX: -MappingDefaults.scrollStep, deltaY: 0),
+            "hat.57.right": .scroll(deltaX: MappingDefaults.scrollStep, deltaY: 0)
         ])
     }
 
@@ -75,10 +75,6 @@ public struct MappingProfile: Codable, Equatable, Sendable {
         assignments[triggerID] ?? .none
     }
 
-    public mutating func assign(_ action: MappingAction, to input: ControllerInput) {
-        assignments[input.triggerID] = action
-    }
-
     public mutating func assign(_ action: MappingAction, toTriggerID triggerID: String) {
         switch action {
         case .none:
@@ -86,10 +82,6 @@ public struct MappingProfile: Codable, Equatable, Sendable {
         default:
             assignments[triggerID] = action
         }
-    }
-
-    public mutating func installJoyConLeftMouseDefaults() {
-        removeDPadMouseDefaults()
     }
 
     public mutating func removeDPadMouseDefaults() {

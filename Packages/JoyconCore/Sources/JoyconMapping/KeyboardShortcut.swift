@@ -31,19 +31,12 @@ public struct KeyboardShortcut: Codable, Equatable, Hashable, Sendable {
         return parts.joined(separator: " + ")
     }
 
-    public static let zoomMuteToggle = KeyboardShortcut(key: "a", modifiers: [.command, .shift])
-    public static let meetMuteToggle = KeyboardShortcut(key: "d", modifiers: [.command])
-    public static let discordMuteToggle = KeyboardShortcut(key: "m", modifiers: [.command, .shift])
     public static let space = KeyboardShortcut(key: "space")
     public static let escape = KeyboardShortcut(key: "escape")
     public static let `return` = KeyboardShortcut(key: "return")
     public static let tab = KeyboardShortcut(key: "tab")
     public static let shiftTab = KeyboardShortcut(key: "tab", modifiers: [.shift])
     public static let delete = KeyboardShortcut(key: "delete")
-    public static let arrowUp = KeyboardShortcut(key: "up")
-    public static let arrowDown = KeyboardShortcut(key: "down")
-    public static let arrowLeft = KeyboardShortcut(key: "left")
-    public static let arrowRight = KeyboardShortcut(key: "right")
 }
 
 public extension KeyboardShortcut.Modifiers {

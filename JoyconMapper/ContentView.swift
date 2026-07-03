@@ -11,17 +11,25 @@ import JoyconHID
 import JoyconMapping
 import UniformTypeIdentifiers
 
-private typealias MappingKeyboardShortcut = JoyconMapping.KeyboardShortcut
-
-private struct MappingTarget: Identifiable, Hashable {
+struct MappingTarget: Identifiable, Hashable {
     let triggerID: String
-    let displayNameKey: String
+    let displayName: String
     let systemImage: String
 
     var id: String { triggerID }
 
-    var displayName: String {
-        String(localized: String.LocalizationValue(displayNameKey))
+    init(triggerID: String, displayNameKey: String, systemImage: String) {
+        self.init(
+            triggerID: triggerID,
+            displayName: String(localized: String.LocalizationValue(displayNameKey)),
+            systemImage: systemImage
+        )
+    }
+
+    init(triggerID: String, displayName: String, systemImage: String) {
+        self.triggerID = triggerID
+        self.displayName = displayName
+        self.systemImage = systemImage
     }
 }
 
@@ -207,7 +215,7 @@ struct ContentView: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $model.mouseSpeed, in: 800...7200, step: 100)
+                    Slider(value: $model.mouseSpeed, in: Tuning.mouseSpeedRange, step: Tuning.mouseSpeedStep)
                 }
             }
 
@@ -493,9 +501,9 @@ struct ContentView: View {
                     .frame(width: 92, height: 92)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    sliderRow("mouse.speed", value: $model.mouseSpeed, range: 800...7200, step: 100)
-                    sliderRow("mouse.deadzone", value: $model.mouseDeadzone, range: 0.05...0.45, step: 0.01)
-                    sliderRow("mouse.acceleration", value: $model.mouseAcceleration, range: 1.0...2.4, step: 0.05)
+                    sliderRow("mouse.speed", value: $model.mouseSpeed, range: Tuning.mouseSpeedRange, step: Tuning.mouseSpeedStep)
+                    sliderRow("mouse.deadzone", value: $model.mouseDeadzone, range: Tuning.mouseDeadzoneRange, step: 0.01)
+                    sliderRow("mouse.acceleration", value: $model.mouseAcceleration, range: Tuning.mouseAccelerationRange, step: 0.05)
                     Toggle("mouse.invertY", isOn: $model.isMouseYInverted)
                 }
             }
@@ -604,7 +612,7 @@ struct ContentView: View {
                 }
                 TableColumn(String(localized: "log.mappedAction")) { input in
                     HStack {
-                        assignmentMenu(for: MappingTarget(triggerID: input.triggerID, displayNameKey: input.triggerDisplayName, systemImage: "smallcircle.filled.circle")) {
+                        assignmentMenu(for: MappingTarget(triggerID: input.triggerID, displayName: input.triggerDisplayName, systemImage: "smallcircle.filled.circle")) {
                             Label(actionDisplayName(model.action(for: input)), systemImage: "slider.horizontal.3")
                         }
                         .menuStyle(.borderlessButton)
@@ -659,25 +667,25 @@ struct ContentView: View {
 
             Section("action.group.scroll") {
                 Button {
-                    model.assign(.scroll(deltaX: 0, deltaY: 14), to: target.triggerID)
+                    model.assign(.scroll(deltaX: 0, deltaY: MappingDefaults.scrollStep), to: target.triggerID)
                 } label: {
                     Label("action.scrollUp", systemImage: "arrow.up")
                 }
 
                 Button {
-                    model.assign(.scroll(deltaX: 0, deltaY: -14), to: target.triggerID)
+                    model.assign(.scroll(deltaX: 0, deltaY: -MappingDefaults.scrollStep), to: target.triggerID)
                 } label: {
                     Label("action.scrollDown", systemImage: "arrow.down")
                 }
 
                 Button {
-                    model.assign(.scroll(deltaX: -14, deltaY: 0), to: target.triggerID)
+                    model.assign(.scroll(deltaX: -MappingDefaults.scrollStep, deltaY: 0), to: target.triggerID)
                 } label: {
                     Label("action.scrollLeft", systemImage: "arrow.left")
                 }
 
                 Button {
-                    model.assign(.scroll(deltaX: 14, deltaY: 0), to: target.triggerID)
+                    model.assign(.scroll(deltaX: MappingDefaults.scrollStep, deltaY: 0), to: target.triggerID)
                 } label: {
                     Label("action.scrollRight", systemImage: "arrow.right")
                 }
@@ -825,301 +833,6 @@ struct ContentView: View {
             settingsAlertMessage = error.localizedDescription
         }
     }
-}
-
-private struct SettingsExportDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
-
-    var data: Data
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        data = configuration.file.regularFileContents ?? Data()
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
-    }
-}
-
-private struct AboutView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center, spacing: 14) {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .frame(width: 68, height: 68)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("app.title")
-                        .font(.title2.weight(.semibold))
-                    Text(AppInfo.versionDisplay)
-                        .foregroundStyle(.secondary)
-                    Link(destination: AppInfo.repositoryURL) {
-                        Label("about.github", systemImage: "arrow.up.right.square")
-                    }
-                    .font(.caption)
-                }
-
-                Spacer()
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("about.license.title")
-                    .font(.headline)
-                ScrollView {
-                    Text(AppInfo.licenseText)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                }
-                .frame(height: 240)
-                .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 8))
-            }
-
-            HStack {
-                Spacer()
-                Button("about.close") {
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(22)
-        .frame(width: 520)
-    }
-}
-
-private enum AppInfo {
-    static let repositoryURL = URL(string: "https://github.com/naoki-mrmt/joycon-mapper")!
-
-    static var versionDisplay: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.9.1"
-        let build = info?["CFBundleVersion"] as? String
-
-        if let build, !build.isEmpty {
-            return String(format: String(localized: "about.version.build"), version, build)
-        }
-
-        return String(format: String(localized: "about.version"), version)
-    }
-
-    static var licenseText: String {
-        if let url = Bundle.main.url(forResource: "LICENSE", withExtension: "txt"),
-           let text = try? String(contentsOf: url, encoding: .utf8) {
-            return text
-        }
-
-        return "MIT License\n\nCopyright (c) 2026 Naoki Muramoto"
-    }
-}
-
-private struct ShortcutRecorderSheet: View {
-    let target: MappingTarget
-    let onRecord: (MappingAction) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var recordedDisplay: String?
-    @State private var modifierRecordTask: Task<Void, Never>?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("recorder.title")
-                    .font(.title3.weight(.semibold))
-                Text(String(format: String(localized: "recorder.subtitle"), target.displayName))
-                    .foregroundStyle(.secondary)
-            }
-
-            ShortcutCaptureView { shortcut in
-                modifierRecordTask?.cancel()
-                recordedDisplay = shortcut.displayName
-                onRecord(.keyboardShortcut(shortcut))
-                dismiss()
-            } onModifiersChanged: { modifiers in
-                modifierRecordTask?.cancel()
-                guard !modifiers.isEmpty else {
-                    recordedDisplay = nil
-                    return
-                }
-
-                recordedDisplay = modifiers.displayName
-                modifierRecordTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 700_000_000)
-                    guard !Task.isCancelled else { return }
-                    onRecord(.modifierHold(modifiers))
-                    dismiss()
-                }
-            }
-            .frame(height: 112)
-            .background(.quaternary.opacity(0.65), in: RoundedRectangle(cornerRadius: 8))
-            .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(.separator, lineWidth: 1)
-            }
-            .overlay {
-                VStack(spacing: 8) {
-                    Image(systemName: "keyboard")
-                        .font(.title2)
-                    Text(recordedDisplay ?? String(localized: "recorder.waiting"))
-                        .font(.headline)
-                        .monospaced()
-                }
-            }
-
-            HStack {
-                Spacer()
-                Button("recorder.cancel") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-            }
-        }
-        .padding(22)
-        .frame(width: 440)
-        .onDisappear {
-            modifierRecordTask?.cancel()
-        }
-    }
-}
-
-private struct StickPreview: View {
-    let x: Double
-    let y: Double
-
-    var body: some View {
-        GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-            let radius = size / 2
-            let knobSize = max(14, size * 0.18)
-            let travel = radius - knobSize / 2 - 6
-            let offset = CGSize(width: x * travel, height: -y * travel)
-
-            ZStack {
-                Circle()
-                    .fill(.background.opacity(0.35))
-                Circle()
-                    .stroke(.separator, lineWidth: 1)
-                Path { path in
-                    path.move(to: CGPoint(x: radius, y: 8))
-                    path.addLine(to: CGPoint(x: radius, y: size - 8))
-                    path.move(to: CGPoint(x: 8, y: radius))
-                    path.addLine(to: CGPoint(x: size - 8, y: radius))
-                }
-                .stroke(.secondary.opacity(0.35), lineWidth: 1)
-                Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: knobSize, height: knobSize)
-                    .offset(offset)
-                    .shadow(radius: 2)
-            }
-            .frame(width: size, height: size)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-}
-
-private struct ShortcutCaptureView: NSViewRepresentable {
-    let onShortcut: (MappingKeyboardShortcut) -> Void
-    let onModifiersChanged: (MappingKeyboardShortcut.Modifiers) -> Void
-
-    func makeNSView(context: Context) -> KeyCaptureView {
-        let view = KeyCaptureView()
-        view.onShortcut = onShortcut
-        view.onModifiersChanged = onModifiersChanged
-        DispatchQueue.main.async {
-            view.window?.makeFirstResponder(view)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: KeyCaptureView, context: Context) {
-        nsView.onShortcut = onShortcut
-        nsView.onModifiersChanged = onModifiersChanged
-        DispatchQueue.main.async {
-            nsView.window?.makeFirstResponder(nsView)
-        }
-    }
-}
-
-private final class KeyCaptureView: NSView {
-    var onShortcut: ((MappingKeyboardShortcut) -> Void)?
-    var onModifiersChanged: ((MappingKeyboardShortcut.Modifiers) -> Void)?
-
-    override var acceptsFirstResponder: Bool { true }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        window?.makeFirstResponder(self)
-    }
-
-    override func keyDown(with event: NSEvent) {
-        guard let shortcut = MappingKeyboardShortcut(event: event) else {
-            return
-        }
-        onShortcut?(shortcut)
-    }
-
-    override func flagsChanged(with event: NSEvent) {
-        onModifiersChanged?(MappingKeyboardShortcut.Modifiers(event: event))
-    }
-}
-
-private extension MappingKeyboardShortcut {
-    init?(event: NSEvent) {
-        guard let key = ShortcutKeyName.key(for: event) else {
-            return nil
-        }
-
-        self.init(key: key, modifiers: .init(event: event))
-    }
-}
-
-private extension MappingKeyboardShortcut.Modifiers {
-    init(event: NSEvent) {
-        self = []
-        if event.modifierFlags.contains(.command) { insert(.command) }
-        if event.modifierFlags.contains(.shift) { insert(.shift) }
-        if event.modifierFlags.contains(.option) { insert(.option) }
-        if event.modifierFlags.contains(.control) { insert(.control) }
-    }
-}
-
-private enum ShortcutKeyName {
-    static func key(for event: NSEvent) -> String? {
-        if let namedKey = keysByCode[Int(event.keyCode)] {
-            return namedKey
-        }
-
-        guard let characters = event.charactersIgnoringModifiers?.lowercased(),
-              characters.count == 1,
-              let character = characters.first else {
-            return nil
-        }
-
-        return String(character)
-    }
-
-    private static let keysByCode: [Int: String] = [
-        36: "return",
-        48: "tab",
-        49: "space",
-        51: "delete",
-        53: "escape",
-        123: "left",
-        124: "right",
-        125: "down",
-        126: "up"
-    ]
 }
 
 #Preview {

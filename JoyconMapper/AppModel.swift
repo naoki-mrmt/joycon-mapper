@@ -60,7 +60,12 @@ final class AppModel: ObservableObject {
         ProfileOption(id: "meeting", name: "Meeting", nameKey: "profile.meeting", isBuiltIn: true)
     ]
 
-    @Published var isMapperEnabled = true
+    @Published var isMapperEnabled = true {
+        didSet {
+            guard oldValue != isMapperEnabled, !isMapperEnabled else { return }
+            releaseAllActiveHolds()
+        }
+    }
     @Published var isStickMouseEnabled = true {
         didSet { userDefaults.set(isStickMouseEnabled, forKey: stickMouseEnabledStoreKey) }
     }
@@ -109,7 +114,7 @@ final class AppModel: ObservableObject {
     }
 
     private let hidClient = JoyconHIDClient()
-    private let inputSender = MacInputSender()
+    private let inputSender: any InputSending
     private let configuration: Configuration
     private let userDefaults: UserDefaults
     private var activeActionTriggers: Set<String> = []
@@ -135,9 +140,10 @@ final class AppModel: ObservableObject {
     private let onboardingCompletedStoreKey = "JoyconMapper.OnboardingCompleted.v1"
     private let settingsExportFormatVersion = 1
 
-    init(configuration: Configuration = .live) {
+    init(configuration: Configuration = .live, inputSender: (any InputSending)? = nil) {
         self.configuration = configuration
         self.userDefaults = configuration.userDefaults
+        self.inputSender = inputSender ?? MacInputSender()
         loadMouseSettings()
         loadProfile()
         refreshLaunchAtLoginStatus()
@@ -183,16 +189,14 @@ final class AppModel: ObservableObject {
 
     func stop() {
         guard configuration.isHardwareEnabled else {
-            activeMouseMoves.removeAll()
-            activeScrolls.removeAll()
+            releaseAllActiveHolds()
             pressedTriggerIDs.removeAll()
             isRunning = false
             return
         }
 
         hidClient.stop()
-        activeMouseMoves.removeAll()
-        activeScrolls.removeAll()
+        releaseAllActiveHolds()
         pressedTriggerIDs.removeAll()
         mouseTimer?.invalidate()
         mouseTimer = nil
@@ -204,10 +208,6 @@ final class AppModel: ObservableObject {
     func reconnect() {
         stop()
         start()
-    }
-
-    func refreshPermissions() {
-        objectWillChange.send()
     }
 
     func requestAccessibilityPermission() {
@@ -244,11 +244,6 @@ final class AppModel: ObservableObject {
             launchAtLoginError = error.localizedDescription
             refreshLaunchAtLoginStatus()
         }
-    }
-
-    func assignLastInput(_ action: MappingAction) {
-        guard let input = recentInputs.first, input.isPressed else { return }
-        profile.assign(action, toTriggerID: input.triggerID)
     }
 
     func assign(_ action: MappingAction, to triggerID: String) {
@@ -355,9 +350,8 @@ final class AppModel: ObservableObject {
             throw SettingsImportError.unsupportedVersion(snapshot.formatVersion)
         }
 
-        let options = mergedProfileOptions(snapshot.profileOptions).isEmpty
-            ? Self.defaultProfileOptions
-            : mergedProfileOptions(snapshot.profileOptions)
+        let merged = mergedProfileOptions(snapshot.profileOptions)
+        let options = merged.isEmpty ? Self.defaultProfileOptions : merged
 
         var importedProfiles = snapshot.profiles
         for option in options where importedProfiles[option.id] == nil {
@@ -374,9 +368,9 @@ final class AppModel: ObservableObject {
         isLoadingProfileState = false
 
         isStickMouseEnabled = snapshot.isStickMouseEnabled
-        mouseSpeed = clamped(snapshot.mouseSpeed, to: 800...7200)
-        mouseDeadzone = clamped(snapshot.mouseDeadzone, to: 0.05...0.45)
-        mouseAcceleration = clamped(snapshot.mouseAcceleration, to: 1.0...2.4)
+        mouseSpeed = clamped(snapshot.mouseSpeed, to: Tuning.mouseSpeedRange)
+        mouseDeadzone = clamped(snapshot.mouseDeadzone, to: Tuning.mouseDeadzoneRange)
+        mouseAcceleration = clamped(snapshot.mouseAcceleration, to: Tuning.mouseAccelerationRange)
         isMouseYInverted = snapshot.isMouseYInverted
 
         userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
@@ -386,10 +380,6 @@ final class AppModel: ObservableObject {
 
     func profileDisplayName(for id: String) -> String {
         profileOptions.first(where: { $0.id == id })?.name ?? Self.defaultProfileOptions.first?.name ?? "Default"
-    }
-
-    func installJoyConLeftMouseDefaults() {
-        profile.removeDPadMouseDefaults()
     }
 
     func action(for input: ControllerInput) -> MappingAction {
@@ -403,7 +393,11 @@ final class AppModel: ObservableObject {
 
     func recordTestingInput(_ input: ControllerInput) {
         recentInputs.insert(input, at: 0)
-        recentInputs = Array(recentInputs.prefix(80))
+        recentInputs = Array(recentInputs.prefix(Tuning.inputLogLimit))
+    }
+
+    func handleTestingInput(_ input: ControllerInput) {
+        handle(input)
     }
 #endif
 
@@ -416,18 +410,15 @@ final class AppModel: ObservableObject {
 
         if recentInputs.first?.triggerID != input.triggerID || recentInputs.first?.value != input.value {
             recentInputs.insert(input, at: 0)
-            recentInputs = Array(recentInputs.prefix(80))
+            recentInputs = Array(recentInputs.prefix(Tuning.inputLogLimit))
         }
     }
 
     private func handleDevicesChanged(_ devices: [JoyconDevice]) {
         self.devices = devices
         guard devices.isEmpty else { return }
-        activeMouseMoves.removeAll()
-        activeScrolls.removeAll()
+        releaseAllActiveHolds()
         pressedTriggerIDs.removeAll()
-        activeActionTriggers.removeAll()
-        activeTriggerByControlID.removeAll()
         stickX = 0
         stickY = 0
         visibleStickX = 0
@@ -448,33 +439,11 @@ final class AppModel: ObservableObject {
 
         let previousTrigger = activeTriggerByControlID[input.control.id]
         if previousTrigger != input.triggerID, let previousTrigger {
-            switch profile.action(forTriggerID: previousTrigger) {
-            case .pushToTalk(let shortcut):
-                inputSender.setShortcut(shortcut, isPressed: false)
-            case .modifierHold(let modifiers):
-                inputSender.setModifiers(modifiers, isPressed: false)
-            default:
-                break
-            }
-            activeMouseMoves.removeValue(forKey: previousTrigger)
-            activeScrolls.removeValue(forKey: previousTrigger)
-            activeActionTriggers.remove(previousTrigger)
-            activeTriggerByControlID.removeValue(forKey: input.control.id)
+            releaseTrigger(previousTrigger, controlID: input.control.id)
         }
 
         guard input.isPressed else {
-            switch profile.action(for: input) {
-            case .pushToTalk(let shortcut):
-                inputSender.setShortcut(shortcut, isPressed: false)
-            case .modifierHold(let modifiers):
-                inputSender.setModifiers(modifiers, isPressed: false)
-            default:
-                break
-            }
-            activeMouseMoves.removeValue(forKey: input.triggerID)
-            activeScrolls.removeValue(forKey: input.triggerID)
-            activeActionTriggers.remove(input.triggerID)
-            activeTriggerByControlID.removeValue(forKey: input.control.id)
+            releaseTrigger(input.triggerID, controlID: input.control.id)
             return
         }
 
@@ -512,9 +481,34 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func releaseTrigger(_ triggerID: String, controlID: String) {
+        switch profile.action(forTriggerID: triggerID) {
+        case .pushToTalk(let shortcut):
+            inputSender.setShortcut(shortcut, isPressed: false)
+        case .modifierHold(let modifiers):
+            inputSender.setModifiers(modifiers, isPressed: false)
+        default:
+            break
+        }
+        activeMouseMoves.removeValue(forKey: triggerID)
+        activeScrolls.removeValue(forKey: triggerID)
+        activeActionTriggers.remove(triggerID)
+        activeTriggerByControlID.removeValue(forKey: controlID)
+    }
+
+    private func releaseAllActiveHolds() {
+        for (controlID, triggerID) in activeTriggerByControlID {
+            releaseTrigger(triggerID, controlID: controlID)
+        }
+        activeActionTriggers.removeAll()
+        activeTriggerByControlID.removeAll()
+        activeMouseMoves.removeAll()
+        activeScrolls.removeAll()
+    }
+
     private func startMouseTimer() {
         guard mouseTimer == nil else { return }
-        mouseTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
+        mouseTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / Tuning.mouseTicksPerSecond, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.tickMouseMovement()
             }
@@ -523,7 +517,7 @@ final class AppModel: ObservableObject {
 
     private func startDeviceRefreshTimer() {
         guard deviceRefreshTimer == nil else { return }
-        deviceRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+        deviceRefreshTimer = Timer.scheduledTimer(withTimeInterval: Tuning.deviceRefreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.isRunning, self.devices.isEmpty else { return }
                 self.hidClient.refreshDevices()
@@ -570,7 +564,7 @@ final class AppModel: ObservableObject {
         let y = accelerated(isMouseYInverted ? -stickY : stickY)
         guard x != 0 || y != 0 else { return (0, 0) }
 
-        let pixelsPerTick = mouseSpeed / 120.0
+        let pixelsPerTick = mouseSpeed / Tuning.mouseTicksPerSecond
         return (x * pixelsPerTick, y * pixelsPerTick)
     }
 
@@ -596,17 +590,17 @@ final class AppModel: ObservableObject {
 
         let storedSpeed = userDefaults.double(forKey: mouseSpeedStoreKey)
         if storedSpeed > 0 {
-            mouseSpeed = storedSpeed
+            mouseSpeed = clamped(storedSpeed, to: Tuning.mouseSpeedRange)
         }
 
         let storedDeadzone = userDefaults.double(forKey: mouseDeadzoneStoreKey)
         if storedDeadzone > 0 {
-            mouseDeadzone = storedDeadzone
+            mouseDeadzone = clamped(storedDeadzone, to: Tuning.mouseDeadzoneRange)
         }
 
         let storedAcceleration = userDefaults.double(forKey: mouseAccelerationStoreKey)
         if storedAcceleration > 0 {
-            mouseAcceleration = storedAcceleration
+            mouseAcceleration = clamped(storedAcceleration, to: Tuning.mouseAccelerationRange)
         }
 
         if userDefaults.object(forKey: mouseYInvertedStoreKey) != nil {
