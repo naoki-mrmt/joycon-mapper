@@ -7,7 +7,7 @@ cask "joycon-mapper" do
   desc "Use a Nintendo Switch Joy-Con (L) as a pointer and shortcut controller"
   homepage "https://github.com/naoki-mrmt/joycon-mapper"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "JoyconMapper.app"
 
