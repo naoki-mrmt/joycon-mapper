@@ -173,6 +173,15 @@ final class AppModel: ObservableObject {
                 self?.handleSystemDidWake()
             }
         }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handleAppWillTerminate()
+            }
+        }
     }
 
     var shouldShowAccessibilityPrompt: Bool {
@@ -237,6 +246,14 @@ final class AppModel: ObservableObject {
     func handleSystemDidWake() {
         guard isRunning else { return }
         reconnect()
+    }
+
+    /// Ensures any held keys/modifiers/mouse buttons are released before the app
+    /// exits. Menu Quit and Cmd-Q call `NSApplication.terminate` directly, which
+    /// would otherwise leave a held mouseHold/modifierHold/pushToTalk stuck
+    /// system-wide (notably a left-button drag).
+    func handleAppWillTerminate() {
+        stop()
     }
 
     /// Emergency "panic" disable that turns the mapper off and, via the

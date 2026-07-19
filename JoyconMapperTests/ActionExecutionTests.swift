@@ -126,6 +126,16 @@ struct ActionExecutionTests {
         #expect(spy.shortcutHoldEvents.last == SpyInputSender.ShortcutHoldEvent(shortcut: .space, isPressed: false))
     }
 
+    @Test func appWillTerminateReleasesHeldMouseButton() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.mouseHold(.left), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.handleAppWillTerminate()
+
+        #expect(spy.mouseButtonEvents.last == SpyInputSender.MouseButtonEvent(button: .left, isPressed: false))
+    }
+
     @Test func switchingProfileReleasesHeldModifier() async throws {
         let (model, spy) = makeModel()
         model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
