@@ -676,14 +676,29 @@ final class AppModel: ObservableObject {
         defer { isLoadingProfileState = false }
 
         var loadedProfiles: [String: MappingProfile] = [:]
-        let loadedOptions = loadProfileOptions()
+        let (loadedOptions, optionsStoreCorrupted) = loadProfileOptions()
 
-        if let data = userDefaults.data(forKey: profilesStoreKey),
-           let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
-            loadedProfiles = decoded
-        } else if let data = userDefaults.data(forKey: legacyProfileStoreKey),
-                  let decoded = try? JSONDecoder().decode(MappingProfile.self, from: data) {
+        // Detect corruption so we never overwrite recoverable stored data with a
+        // silent default reset. When the stored blob exists but fails to decode we
+        // keep the raw data in place and skip the trailing save for that key.
+        var profilesStoreCorrupted = false
+        var loadedFromProfilesStore = false
+        var didMigrateLegacy = false
+
+        if let data = userDefaults.data(forKey: profilesStoreKey) {
+            if let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
+                loadedProfiles = decoded
+                loadedFromProfilesStore = true
+            } else {
+                profilesStoreCorrupted = true
+            }
+        }
+
+        if !loadedFromProfilesStore, !profilesStoreCorrupted,
+           let data = userDefaults.data(forKey: legacyProfileStoreKey),
+           let decoded = try? JSONDecoder().decode(MappingProfile.self, from: data) {
             loadedProfiles["default"] = decoded
+            didMigrateLegacy = true
         }
 
         for option in loadedOptions where loadedProfiles[option.id] == nil {
@@ -699,8 +714,18 @@ final class AppModel: ObservableObject {
         let storedProfileID = userDefaults.string(forKey: activeProfileStoreKey) ?? "default"
         activeProfileID = loadedOptions.contains(where: { $0.id == storedProfileID }) ? storedProfileID : loadedOptions[0].id
         profile = profiles[activeProfileID] ?? .joyConLeftDefault
-        saveProfileOptions()
-        saveProfiles()
+
+        if !optionsStoreCorrupted {
+            saveProfileOptions()
+        }
+        if !profilesStoreCorrupted {
+            saveProfiles()
+            // Migration succeeded and was persisted to v2; drop the legacy key so a
+            // future corruption can't resurrect stale settings.
+            if didMigrateLegacy {
+                userDefaults.removeObject(forKey: legacyProfileStoreKey)
+            }
+        }
     }
 
     private func saveProfiles() {
@@ -708,14 +733,20 @@ final class AppModel: ObservableObject {
         userDefaults.set(data, forKey: profilesStoreKey)
     }
 
-    private func loadProfileOptions() -> [ProfileOption] {
-        if let data = userDefaults.data(forKey: profileOptionsStoreKey),
-           let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data),
-           !decoded.isEmpty {
-            return mergedProfileOptions(decoded)
+    /// Returns the stored profile options along with a flag indicating that a
+    /// stored blob was present but failed to decode. Callers use the flag to
+    /// avoid overwriting corrupt-but-recoverable data with defaults.
+    private func loadProfileOptions() -> (options: [ProfileOption], storeCorrupted: Bool) {
+        guard let data = userDefaults.data(forKey: profileOptionsStoreKey) else {
+            return (Self.defaultProfileOptions, false)
         }
-
-        return Self.defaultProfileOptions
+        guard let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data) else {
+            return (Self.defaultProfileOptions, true)
+        }
+        guard !decoded.isEmpty else {
+            return (Self.defaultProfileOptions, false)
+        }
+        return (mergedProfileOptions(decoded), false)
     }
 
     private func mergedProfileOptions(_ storedOptions: [ProfileOption]) -> [ProfileOption] {

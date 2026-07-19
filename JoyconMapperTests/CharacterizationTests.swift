@@ -170,6 +170,54 @@ struct CharacterizationTests {
         #expect(option.nameKey == nil)
     }
 
+    // MARK: - Persistence corruption resistance
+
+    @MainActor
+    @Test func corruptProfilesStoreIsNotOverwritten() async throws {
+        let suiteName = "JoyconMapper.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let garbage = Data("garbage".utf8)
+        defaults.set(garbage, forKey: "JoyconMapper.MappingProfiles.v2")
+
+        let configuration = AppModel.Configuration(
+            userDefaults: defaults,
+            isHardwareEnabled: false,
+            accessibilityTrustedOverride: true
+        )
+        let model = AppModel(configuration: configuration)
+
+        // App still functions with a working default profile in memory.
+        #expect(model.activeProfileID == "default")
+        #expect(model.profileOptions.contains(where: { $0.id == "default" }))
+
+        // The corrupt blob is left untouched, preserving recovery room.
+        #expect(defaults.data(forKey: "JoyconMapper.MappingProfiles.v2") == garbage)
+    }
+
+    @MainActor
+    @Test func legacyProfileMigratesAndClearsLegacyKey() async throws {
+        let suiteName = "JoyconMapper.Tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+
+        var legacyProfile = MappingProfile()
+        legacyProfile.assign(.mouseClick(.right), toTriggerID: "joycon.l")
+        let legacyData = try JSONEncoder().encode(legacyProfile)
+        defaults.set(legacyData, forKey: "JoyconMapper.MappingProfile.v1")
+
+        let configuration = AppModel.Configuration(
+            userDefaults: defaults,
+            isHardwareEnabled: false,
+            accessibilityTrustedOverride: true
+        )
+        let model = AppModel(configuration: configuration)
+
+        #expect(model.activeProfileID == "default")
+        #expect(model.profile.action(forTriggerID: "joycon.l") == .mouseClick(.right))
+        #expect(defaults.data(forKey: "JoyconMapper.MappingProfile.v1") == nil)
+    }
+
     // MARK: - Mapping profile helper
 
     @Test func removeDPadMouseDefaultsKeepsScrollAssignments() async throws {
