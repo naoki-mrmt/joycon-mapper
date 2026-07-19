@@ -331,10 +331,12 @@ final class AppModel: ObservableObject {
         guard !profileOptions[index].isBuiltIn, profileOptions.count > 1 else { return }
 
         let deletedID = activeProfileID
-        let nextProfileID = profileOptions[max(0, index - 1)].id
-        isLoadingProfileState = true
         profileOptions.remove(at: index)
         profiles.removeValue(forKey: deletedID)
+        // Pick the next selection from the post-deletion array so we never land
+        // back on the just-deleted profile (which happened when index == 0).
+        let nextProfileID = profileOptions[min(index, profileOptions.count - 1)].id
+        isLoadingProfileState = true
         activeProfileID = nextProfileID
         profile = profiles[nextProfileID] ?? .joyConLeftDefault
         isLoadingProfileState = false
@@ -750,7 +752,10 @@ final class AppModel: ObservableObject {
     }
 
     private func mergedProfileOptions(_ storedOptions: [ProfileOption]) -> [ProfileOption] {
-        var options = storedOptions
+        // Drop duplicate ids first-wins so imported/loaded data can't produce a
+        // Picker with duplicate entries or ambiguous CRUD targets.
+        var seenIDs = Set<String>()
+        var options = storedOptions.filter { seenIDs.insert($0.id).inserted }
         for builtIn in Self.defaultProfileOptions where !options.contains(where: { $0.id == builtIn.id }) {
             options.insert(builtIn, at: min(options.count, Self.defaultProfileOptions.count))
         }

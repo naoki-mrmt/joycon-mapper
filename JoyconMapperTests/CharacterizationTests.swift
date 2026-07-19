@@ -218,6 +218,57 @@ struct CharacterizationTests {
         #expect(defaults.data(forKey: "JoyconMapper.MappingProfile.v1") == nil)
     }
 
+    // MARK: - Profile CRUD boundaries
+
+    @MainActor
+    @Test func deleteFirstNonBuiltinProfileSelectsValidProfile() async throws {
+        let source = AppModel(configuration: .testing())
+        source.createProfile(named: "Custom")
+        let customID = source.activeProfileID
+        let data = try source.exportSettingsData()
+
+        var object = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        var options = try #require(object["profileOptions"] as? [[String: Any]])
+        // Reorder so the non-built-in custom profile is first (as an imported file can be).
+        let customOption = try #require(options.first(where: { ($0["id"] as? String) == customID }))
+        options.removeAll { ($0["id"] as? String) == customID }
+        options.insert(customOption, at: 0)
+        object["profileOptions"] = options
+        object["activeProfileID"] = customID
+        let mutated = try JSONSerialization.data(withJSONObject: object)
+
+        let destination = AppModel(configuration: .testing())
+        try destination.importSettingsData(mutated)
+        #expect(destination.activeProfileID == customID)
+
+        destination.deleteActiveProfile()
+
+        #expect(destination.activeProfileID != customID)
+        #expect(destination.profileOptions.contains(where: { $0.id == destination.activeProfileID }))
+    }
+
+    @MainActor
+    @Test func importDeduplicatesProfileOptionIDs() async throws {
+        let source = AppModel(configuration: .testing())
+        let data = try source.exportSettingsData()
+
+        var object = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        var options = try #require(object["profileOptions"] as? [[String: Any]])
+        options.append(options[0]) // introduce a duplicate id
+        object["profileOptions"] = options
+        let mutated = try JSONSerialization.data(withJSONObject: object)
+
+        let destination = AppModel(configuration: .testing())
+        try destination.importSettingsData(mutated)
+
+        let ids = destination.profileOptions.map(\.id)
+        #expect(Set(ids).count == ids.count)
+    }
+
     // MARK: - Mapping profile helper
 
     @Test func removeDPadMouseDefaultsKeepsScrollAssignments() async throws {
