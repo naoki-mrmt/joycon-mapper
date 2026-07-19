@@ -133,6 +133,7 @@ final class AppModel: ObservableObject {
     private var mouseTimer: Timer?
     private var deviceRefreshTimer: Timer?
     private var accessibilityRefreshTimer: Timer?
+    private var panicKeyMonitors: [Any] = []
     private let legacyProfileStoreKey = "JoyconMapper.MappingProfile.v1"
     private let profilesStoreKey = "JoyconMapper.MappingProfiles.v2"
     private let profileOptionsStoreKey = "JoyconMapper.ProfileOptions.v1"
@@ -209,6 +210,7 @@ final class AppModel: ObservableObject {
             startMouseTimer()
             startDeviceRefreshTimer()
             startAccessibilityRefreshTimer()
+            startPanicHotkeyMonitor()
             requestAccessibilityPermissionIfNeeded()
         } catch {
             lastError = error.localizedDescription
@@ -225,6 +227,7 @@ final class AppModel: ObservableObject {
         }
 
         hidClient.stop()
+        stopPanicHotkeyMonitor()
         releaseAllActiveHolds()
         pressedTriggerIDs.removeAll()
         mouseTimer?.invalidate()
@@ -576,6 +579,36 @@ final class AppModel: ObservableObject {
         activeActionByTrigger.removeAll()
         activeMouseMoves.removeAll()
         activeScrolls.removeAll()
+    }
+
+    /// Installs a global + local keyboard shortcut (Control-Option-Command-Escape)
+    /// that immediately disables the mapper. This is a safety valve for when the
+    /// pointer or clicks are running away and the menu bar is unusable.
+    private func startPanicHotkeyMonitor() {
+        guard panicKeyMonitors.isEmpty else { return }
+
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard event.keyCode == 53,
+                  event.modifierFlags.isSuperset(of: [.control, .option, .command]) else { return }
+            self?.panicDisable()
+        }
+
+        if let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler) {
+            panicKeyMonitors.append(globalMonitor)
+        }
+        if let localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { event in
+            handler(event)
+            return event
+        }) {
+            panicKeyMonitors.append(localMonitor)
+        }
+    }
+
+    private func stopPanicHotkeyMonitor() {
+        for monitor in panicKeyMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        panicKeyMonitors.removeAll()
     }
 
     private func startMouseTimer() {
