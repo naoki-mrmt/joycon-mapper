@@ -126,6 +126,43 @@ struct ActionExecutionTests {
         #expect(spy.shortcutHoldEvents.last == SpyInputSender.ShortcutHoldEvent(shortcut: .space, isPressed: false))
     }
 
+    @Test func switchingProfileReleasesHeldModifier() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        // Switch to a profile where joycon.l is unmapped while the button is held.
+        model.createProfile(named: "Empty")
+
+        #expect(spy.modifierEvents.last == SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false))
+    }
+
+    @Test func reassigningHeldTriggerReleasesTheOriginalHold() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        // Reassign the same trigger to a different action while it is held.
+        model.assign(.mouseClick(.left), to: "joycon.l")
+
+        #expect(spy.modifierEvents.last == SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false))
+    }
+
+    @Test func releaseAfterProfileSwitchDoesNotSendStaleActionForNewProfile() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+        model.createProfile(named: "Empty")   // releases the command hold once
+
+        // Releasing the physical button now must not emit any further modifier event.
+        model.handleTestingInput(.lButton(value: 0))
+
+        #expect(spy.modifierEvents == [
+            SpyInputSender.ModifierEvent(modifiers: .command, isPressed: true),
+            SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false)
+        ])
+    }
+
     private func makeModel() -> (AppModel, SpyInputSender) {
         let spy = SpyInputSender()
         let model = AppModel(configuration: .testing(), inputSender: spy)

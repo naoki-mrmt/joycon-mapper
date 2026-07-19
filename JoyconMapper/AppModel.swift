@@ -89,6 +89,7 @@ final class AppModel: ObservableObject {
         didSet {
             guard oldValue != activeProfileID else { return }
             guard !isLoadingProfileState else { return }
+            releaseAllActiveHolds()
             profiles[oldValue] = profile
             userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
             profile = profiles[activeProfileID] ?? .joyConLeftDefault
@@ -109,6 +110,7 @@ final class AppModel: ObservableObject {
     @Published var profile = MappingProfile() {
         didSet {
             guard !isLoadingProfileState else { return }
+            releaseAllActiveHolds()
             profiles[activeProfileID] = profile
             saveProfiles()
         }
@@ -120,6 +122,7 @@ final class AppModel: ObservableObject {
     private let userDefaults: UserDefaults
     private var activeActionTriggers: Set<String> = []
     private var activeTriggerByControlID: [String: String] = [:]
+    private var activeActionByTrigger: [String: MappingAction] = [:]
     private var activeMouseMoves: [String: (deltaX: Double, deltaY: Double)] = [:]
     private var activeScrolls: [String: (deltaX: Double, deltaY: Double)] = [:]
     private var stickX = 0.0
@@ -456,47 +459,50 @@ final class AppModel: ObservableObject {
             return
         }
 
-        switch profile.action(for: input) {
+        let action = profile.action(for: input)
+        switch action {
         case .none:
             return
         case .keyboardShortcut(let shortcut):
             guard !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.post(shortcut: shortcut)
         case .modifierHold(let modifiers):
             guard !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.setModifiers(modifiers, isPressed: true)
         case .pushToTalk(let shortcut):
             guard input.control.kind == .button, !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.setShortcut(shortcut, isPressed: true)
         case .mouseClick(let button):
             guard !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.clickMouse(button)
         case .mouseHold(let button):
             guard input.control.kind == .button, !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.setMouseButton(button, isPressed: true)
         case .mouseMove(let deltaX, let deltaY):
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             activeMouseMoves[input.triggerID] = (deltaX, deltaY)
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
         case .scroll(let deltaX, let deltaY):
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             activeScrolls[input.triggerID] = (deltaX, deltaY)
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
         }
     }
 
-    private func releaseTrigger(_ triggerID: String, controlID: String) {
-        switch profile.action(forTriggerID: triggerID) {
+    /// Records that `action` is now engaged for `triggerID`. The action is stored so
+    /// that release can reverse the exact action that fired, even if the active
+    /// profile or its assignments change while the control is still held.
+    private func engage(_ action: MappingAction, trigger triggerID: String, controlID: String) {
+        activeActionTriggers.insert(triggerID)
+        activeTriggerByControlID[controlID] = triggerID
+        activeActionByTrigger[triggerID] = action
+    }
+
+    private func releaseHold(for action: MappingAction) {
+        switch action {
         case .pushToTalk(let shortcut):
             inputSender.setShortcut(shortcut, isPressed: false)
         case .modifierHold(let modifiers):
@@ -506,18 +512,26 @@ final class AppModel: ObservableObject {
         default:
             break
         }
+    }
+
+    private func releaseTrigger(_ triggerID: String, controlID: String) {
+        if let action = activeActionByTrigger[triggerID] {
+            releaseHold(for: action)
+        }
         activeMouseMoves.removeValue(forKey: triggerID)
         activeScrolls.removeValue(forKey: triggerID)
         activeActionTriggers.remove(triggerID)
+        activeActionByTrigger.removeValue(forKey: triggerID)
         activeTriggerByControlID.removeValue(forKey: controlID)
     }
 
     private func releaseAllActiveHolds() {
-        for (controlID, triggerID) in activeTriggerByControlID {
-            releaseTrigger(triggerID, controlID: controlID)
+        for action in activeActionByTrigger.values {
+            releaseHold(for: action)
         }
         activeActionTriggers.removeAll()
         activeTriggerByControlID.removeAll()
+        activeActionByTrigger.removeAll()
         activeMouseMoves.removeAll()
         activeScrolls.removeAll()
     }
