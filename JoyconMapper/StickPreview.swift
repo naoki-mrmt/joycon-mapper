@@ -9,7 +9,7 @@ struct StickPreview: View {
             let size = min(proxy.size.width, proxy.size.height)
             let radius = size / 2
             let knobSize = max(14, size * 0.18)
-            let travel = radius - knobSize / 2 - 6
+            let travel = max(0, radius - knobSize / 2 - 6)
             let offset = CGSize(width: x * travel, height: -y * travel)
 
             ZStack {

@@ -107,6 +107,7 @@ struct ContentView: View {
             defaultFilename: "JoyconMapper-Settings"
         ) { result in
             if case .failure(let error) = result {
+                if isUserCancelled(error) { return }
                 settingsAlertMessage = error.localizedDescription
             }
         }
@@ -587,6 +588,7 @@ struct ContentView: View {
                 Spacer()
                 Button("log.clear") {
                     model.clearRecentInputs()
+                    selectedInputID = nil
                 }
                 .disabled(model.recentInputs.isEmpty)
                 .accessibilityIdentifier("clearInputLogButton")
@@ -726,6 +728,7 @@ struct ContentView: View {
             Divider()
 
             Button {
+                isShowingInputLog = false
                 recordingTarget = target
             } label: {
                 Label("action.recordShortcut", systemImage: "keyboard")
@@ -843,8 +846,15 @@ struct ContentView: View {
             try model.importSettingsData(Data(contentsOf: url))
             settingsAlertMessage = String(localized: "settings.import.success")
         } catch {
+            if isUserCancelled(error) { return }
             settingsAlertMessage = error.localizedDescription
         }
+    }
+
+    private func isUserCancelled(_ error: Error) -> Bool {
+        if (error as NSError).code == NSUserCancelledError { return true }
+        if let cocoaError = error as? CocoaError, cocoaError.code == .userCancelled { return true }
+        return false
     }
 }
 

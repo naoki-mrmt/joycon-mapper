@@ -64,10 +64,18 @@ public final class JoyconHIDClient {
             return
         }
 
-        let deviceSet = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> ?? []
+        // A nil result means the copy failed transiently; keep the current
+        // device list rather than flashing to "no devices". A genuine empty
+        // set (0 matching devices) is delivered as an empty Set, not nil.
+        guard let deviceSet = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> else {
+            return
+        }
         deviceSet.forEach(registerInputReportCallbackIfNeeded)
         let devices = deviceSet.map(Self.snapshot).sorted { $0.name < $1.name }
-        devicesByID = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
+        // Two Joy-Con of the same side report identical ids when the Bluetooth
+        // transport omits the location, so keep the last one instead of trapping
+        // on a duplicate key.
+        devicesByID = Dictionary(devices.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
         onDevicesChanged?(devices)
     }
 

@@ -133,6 +133,7 @@ public final class MacInputSender {
     }
 
     public func clickMouse(_ button: MouseClickButton) {
+        guard !pressedMouseButtons.contains(button) else { return }
         let location = CGEvent(source: nil)?.location ?? .zero
         let cgButton: CGMouseButton
         let eventTypeDown: CGEventType

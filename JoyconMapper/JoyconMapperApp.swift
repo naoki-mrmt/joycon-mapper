@@ -81,7 +81,7 @@ struct MenuBarContentView: View {
         Divider()
         Button("app.openWindow") {
             NSApplication.shared.activate(ignoringOtherApps: true)
-            if let mainWindow = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true }) {
+            if let mainWindow = NSApp.windows.first(where: { $0.canBecomeMain && $0.styleMask.contains(.titled) }) {
                 mainWindow.makeKeyAndOrderFront(nil)
             } else {
                 openWindow(id: "main")

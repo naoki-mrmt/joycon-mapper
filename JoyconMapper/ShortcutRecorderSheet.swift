@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 import JoyconMapping
 
 fileprivate typealias MappingKeyboardShortcut = JoyconMapping.KeyboardShortcut
@@ -68,6 +69,10 @@ struct ShortcutRecorderSheet: View {
         .frame(width: 440)
         .onDisappear {
             modifierRecordTask?.cancel()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            modifierRecordTask?.cancel()
+            recordedDisplay = nil
         }
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import JoyconHID
@@ -89,6 +90,7 @@ final class AppModel: ObservableObject {
         didSet {
             guard oldValue != activeProfileID else { return }
             guard !isLoadingProfileState else { return }
+            releaseAllActiveHolds()
             profiles[oldValue] = profile
             userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
             profile = profiles[activeProfileID] ?? .joyConLeftDefault
@@ -109,6 +111,7 @@ final class AppModel: ObservableObject {
     @Published var profile = MappingProfile() {
         didSet {
             guard !isLoadingProfileState else { return }
+            releaseAllActiveHolds()
             profiles[activeProfileID] = profile
             saveProfiles()
         }
@@ -120,6 +123,7 @@ final class AppModel: ObservableObject {
     private let userDefaults: UserDefaults
     private var activeActionTriggers: Set<String> = []
     private var activeTriggerByControlID: [String: String] = [:]
+    private var activeActionByTrigger: [String: MappingAction] = [:]
     private var activeMouseMoves: [String: (deltaX: Double, deltaY: Double)] = [:]
     private var activeScrolls: [String: (deltaX: Double, deltaY: Double)] = [:]
     private var stickX = 0.0
@@ -129,6 +133,7 @@ final class AppModel: ObservableObject {
     private var mouseTimer: Timer?
     private var deviceRefreshTimer: Timer?
     private var accessibilityRefreshTimer: Timer?
+    private var panicKeyMonitors: [Any] = []
     private let legacyProfileStoreKey = "JoyconMapper.MappingProfile.v1"
     private let profilesStoreKey = "JoyconMapper.MappingProfiles.v2"
     private let profileOptionsStoreKey = "JoyconMapper.ProfileOptions.v1"
@@ -160,6 +165,24 @@ final class AppModel: ObservableObject {
                 self?.handle(input)
             }
         }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handleSystemDidWake()
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handleAppWillTerminate()
+            }
+        }
     }
 
     var shouldShowAccessibilityPrompt: Bool {
@@ -187,6 +210,7 @@ final class AppModel: ObservableObject {
             startMouseTimer()
             startDeviceRefreshTimer()
             startAccessibilityRefreshTimer()
+            startPanicHotkeyMonitor()
             requestAccessibilityPermissionIfNeeded()
         } catch {
             lastError = error.localizedDescription
@@ -203,6 +227,7 @@ final class AppModel: ObservableObject {
         }
 
         hidClient.stop()
+        stopPanicHotkeyMonitor()
         releaseAllActiveHolds()
         pressedTriggerIDs.removeAll()
         mouseTimer?.invalidate()
@@ -217,6 +242,27 @@ final class AppModel: ObservableObject {
     func reconnect() {
         stop()
         start()
+    }
+
+    /// Re-establishes the HID connection after the machine wakes from sleep,
+    /// where the underlying device handles are frequently invalidated.
+    func handleSystemDidWake() {
+        guard isRunning else { return }
+        reconnect()
+    }
+
+    /// Ensures any held keys/modifiers/mouse buttons are released before the app
+    /// exits. Menu Quit and Cmd-Q call `NSApplication.terminate` directly, which
+    /// would otherwise leave a held mouseHold/modifierHold/pushToTalk stuck
+    /// system-wide (notably a left-button drag).
+    func handleAppWillTerminate() {
+        stop()
+    }
+
+    /// Emergency "panic" disable that turns the mapper off and, via the
+    /// `isMapperEnabled` didSet, releases every held key/modifier/mouse button.
+    func panicDisable() {
+        isMapperEnabled = false
     }
 
     func requestAccessibilityPermission() {
@@ -305,10 +351,12 @@ final class AppModel: ObservableObject {
         guard !profileOptions[index].isBuiltIn, profileOptions.count > 1 else { return }
 
         let deletedID = activeProfileID
-        let nextProfileID = profileOptions[max(0, index - 1)].id
-        isLoadingProfileState = true
         profileOptions.remove(at: index)
         profiles.removeValue(forKey: deletedID)
+        // Pick the next selection from the post-deletion array so we never land
+        // back on the just-deleted profile (which happened when index == 0).
+        let nextProfileID = profileOptions[min(index, profileOptions.count - 1)].id
+        isLoadingProfileState = true
         activeProfileID = nextProfileID
         profile = profiles[nextProfileID] ?? .joyConLeftDefault
         isLoadingProfileState = false
@@ -456,47 +504,50 @@ final class AppModel: ObservableObject {
             return
         }
 
-        switch profile.action(for: input) {
+        let action = profile.action(for: input)
+        switch action {
         case .none:
             return
         case .keyboardShortcut(let shortcut):
             guard !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.post(shortcut: shortcut)
         case .modifierHold(let modifiers):
             guard !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.setModifiers(modifiers, isPressed: true)
         case .pushToTalk(let shortcut):
             guard input.control.kind == .button, !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.setShortcut(shortcut, isPressed: true)
         case .mouseClick(let button):
             guard !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.clickMouse(button)
         case .mouseHold(let button):
             guard input.control.kind == .button, !activeActionTriggers.contains(input.triggerID) else { return }
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             inputSender.setMouseButton(button, isPressed: true)
         case .mouseMove(let deltaX, let deltaY):
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             activeMouseMoves[input.triggerID] = (deltaX, deltaY)
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
         case .scroll(let deltaX, let deltaY):
+            engage(action, trigger: input.triggerID, controlID: input.control.id)
             activeScrolls[input.triggerID] = (deltaX, deltaY)
-            activeActionTriggers.insert(input.triggerID)
-            activeTriggerByControlID[input.control.id] = input.triggerID
         }
     }
 
-    private func releaseTrigger(_ triggerID: String, controlID: String) {
-        switch profile.action(forTriggerID: triggerID) {
+    /// Records that `action` is now engaged for `triggerID`. The action is stored so
+    /// that release can reverse the exact action that fired, even if the active
+    /// profile or its assignments change while the control is still held.
+    private func engage(_ action: MappingAction, trigger triggerID: String, controlID: String) {
+        activeActionTriggers.insert(triggerID)
+        activeTriggerByControlID[controlID] = triggerID
+        activeActionByTrigger[triggerID] = action
+    }
+
+    private func releaseHold(for action: MappingAction) {
+        switch action {
         case .pushToTalk(let shortcut):
             inputSender.setShortcut(shortcut, isPressed: false)
         case .modifierHold(let modifiers):
@@ -506,20 +557,58 @@ final class AppModel: ObservableObject {
         default:
             break
         }
+    }
+
+    private func releaseTrigger(_ triggerID: String, controlID: String) {
+        if let action = activeActionByTrigger[triggerID] {
+            releaseHold(for: action)
+        }
         activeMouseMoves.removeValue(forKey: triggerID)
         activeScrolls.removeValue(forKey: triggerID)
         activeActionTriggers.remove(triggerID)
+        activeActionByTrigger.removeValue(forKey: triggerID)
         activeTriggerByControlID.removeValue(forKey: controlID)
     }
 
     private func releaseAllActiveHolds() {
-        for (controlID, triggerID) in activeTriggerByControlID {
-            releaseTrigger(triggerID, controlID: controlID)
+        for action in activeActionByTrigger.values {
+            releaseHold(for: action)
         }
         activeActionTriggers.removeAll()
         activeTriggerByControlID.removeAll()
+        activeActionByTrigger.removeAll()
         activeMouseMoves.removeAll()
         activeScrolls.removeAll()
+    }
+
+    /// Installs a global + local keyboard shortcut (Control-Option-Command-Escape)
+    /// that immediately disables the mapper. This is a safety valve for when the
+    /// pointer or clicks are running away and the menu bar is unusable.
+    private func startPanicHotkeyMonitor() {
+        guard panicKeyMonitors.isEmpty else { return }
+
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard event.keyCode == 53,
+                  event.modifierFlags.isSuperset(of: [.control, .option, .command]) else { return }
+            self?.panicDisable()
+        }
+
+        if let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler) {
+            panicKeyMonitors.append(globalMonitor)
+        }
+        if let localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { event in
+            handler(event)
+            return event
+        }) {
+            panicKeyMonitors.append(localMonitor)
+        }
+    }
+
+    private func stopPanicHotkeyMonitor() {
+        for monitor in panicKeyMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        panicKeyMonitors.removeAll()
     }
 
     private func startMouseTimer() {
@@ -551,6 +640,7 @@ final class AppModel: ObservableObject {
     }
 
     private func tickMouseMovement() {
+        guard isRunning else { return }
         guard isMapperEnabled else { return }
 
         let stickMove = stickMouseDelta()
@@ -638,14 +728,29 @@ final class AppModel: ObservableObject {
         defer { isLoadingProfileState = false }
 
         var loadedProfiles: [String: MappingProfile] = [:]
-        let loadedOptions = loadProfileOptions()
+        let (loadedOptions, optionsStoreCorrupted) = loadProfileOptions()
 
-        if let data = userDefaults.data(forKey: profilesStoreKey),
-           let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
-            loadedProfiles = decoded
-        } else if let data = userDefaults.data(forKey: legacyProfileStoreKey),
-                  let decoded = try? JSONDecoder().decode(MappingProfile.self, from: data) {
+        // Detect corruption so we never overwrite recoverable stored data with a
+        // silent default reset. When the stored blob exists but fails to decode we
+        // keep the raw data in place and skip the trailing save for that key.
+        var profilesStoreCorrupted = false
+        var loadedFromProfilesStore = false
+        var didMigrateLegacy = false
+
+        if let data = userDefaults.data(forKey: profilesStoreKey) {
+            if let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
+                loadedProfiles = decoded
+                loadedFromProfilesStore = true
+            } else {
+                profilesStoreCorrupted = true
+            }
+        }
+
+        if !loadedFromProfilesStore, !profilesStoreCorrupted,
+           let data = userDefaults.data(forKey: legacyProfileStoreKey),
+           let decoded = try? JSONDecoder().decode(MappingProfile.self, from: data) {
             loadedProfiles["default"] = decoded
+            didMigrateLegacy = true
         }
 
         for option in loadedOptions where loadedProfiles[option.id] == nil {
@@ -661,8 +766,18 @@ final class AppModel: ObservableObject {
         let storedProfileID = userDefaults.string(forKey: activeProfileStoreKey) ?? "default"
         activeProfileID = loadedOptions.contains(where: { $0.id == storedProfileID }) ? storedProfileID : loadedOptions[0].id
         profile = profiles[activeProfileID] ?? .joyConLeftDefault
-        saveProfileOptions()
-        saveProfiles()
+
+        if !optionsStoreCorrupted {
+            saveProfileOptions()
+        }
+        if !profilesStoreCorrupted {
+            saveProfiles()
+            // Migration succeeded and was persisted to v2; drop the legacy key so a
+            // future corruption can't resurrect stale settings.
+            if didMigrateLegacy {
+                userDefaults.removeObject(forKey: legacyProfileStoreKey)
+            }
+        }
     }
 
     private func saveProfiles() {
@@ -670,18 +785,27 @@ final class AppModel: ObservableObject {
         userDefaults.set(data, forKey: profilesStoreKey)
     }
 
-    private func loadProfileOptions() -> [ProfileOption] {
-        if let data = userDefaults.data(forKey: profileOptionsStoreKey),
-           let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data),
-           !decoded.isEmpty {
-            return mergedProfileOptions(decoded)
+    /// Returns the stored profile options along with a flag indicating that a
+    /// stored blob was present but failed to decode. Callers use the flag to
+    /// avoid overwriting corrupt-but-recoverable data with defaults.
+    private func loadProfileOptions() -> (options: [ProfileOption], storeCorrupted: Bool) {
+        guard let data = userDefaults.data(forKey: profileOptionsStoreKey) else {
+            return (Self.defaultProfileOptions, false)
         }
-
-        return Self.defaultProfileOptions
+        guard let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data) else {
+            return (Self.defaultProfileOptions, true)
+        }
+        guard !decoded.isEmpty else {
+            return (Self.defaultProfileOptions, false)
+        }
+        return (mergedProfileOptions(decoded), false)
     }
 
     private func mergedProfileOptions(_ storedOptions: [ProfileOption]) -> [ProfileOption] {
-        var options = storedOptions
+        // Drop duplicate ids first-wins so imported/loaded data can't produce a
+        // Picker with duplicate entries or ambiguous CRUD targets.
+        var seenIDs = Set<String>()
+        var options = storedOptions.filter { seenIDs.insert($0.id).inserted }
         for builtIn in Self.defaultProfileOptions where !options.contains(where: { $0.id == builtIn.id }) {
             options.insert(builtIn, at: min(options.count, Self.defaultProfileOptions.count))
         }
