@@ -163,6 +163,27 @@ struct ActionExecutionTests {
         ])
     }
 
+    @Test func panicDisableStopsMapperAndReleasesHolds() async throws {
+        let (model, spy) = makeModel()
+        model.profile.assign(.modifierHold(.command), toTriggerID: "joycon.l")
+        model.handleTestingInput(.lButton(value: 1))
+
+        model.panicDisable()
+
+        #expect(model.isMapperEnabled == false)
+        #expect(spy.modifierEvents.last == SpyInputSender.ModifierEvent(modifiers: .command, isPressed: false))
+    }
+
+    @Test func handleSystemDidWakeKeepsRunning() async throws {
+        let (model, _) = makeModel()
+        model.start()
+        #expect(model.isRunning == true)
+
+        model.handleSystemDidWake()
+
+        #expect(model.isRunning == true)
+    }
+
     private func makeModel() -> (AppModel, SpyInputSender) {
         let spy = SpyInputSender()
         let model = AppModel(configuration: .testing(), inputSender: spy)

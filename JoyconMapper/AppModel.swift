@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import JoyconHID
@@ -163,6 +164,15 @@ final class AppModel: ObservableObject {
                 self?.handle(input)
             }
         }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handleSystemDidWake()
+            }
+        }
     }
 
     var shouldShowAccessibilityPrompt: Bool {
@@ -220,6 +230,19 @@ final class AppModel: ObservableObject {
     func reconnect() {
         stop()
         start()
+    }
+
+    /// Re-establishes the HID connection after the machine wakes from sleep,
+    /// where the underlying device handles are frequently invalidated.
+    func handleSystemDidWake() {
+        guard isRunning else { return }
+        reconnect()
+    }
+
+    /// Emergency "panic" disable that turns the mapper off and, via the
+    /// `isMapperEnabled` didSet, releases every held key/modifier/mouse button.
+    func panicDisable() {
+        isMapperEnabled = false
     }
 
     func requestAccessibilityPermission() {
@@ -565,6 +588,7 @@ final class AppModel: ObservableObject {
     }
 
     private func tickMouseMovement() {
+        guard isRunning else { return }
         guard isMapperEnabled else { return }
 
         let stickMove = stickMouseDelta()
