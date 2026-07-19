@@ -1,5 +1,29 @@
 # 残作業
 
+## 2026-07-19 バグ潰し+安定化(feature/v0.11.0-stability)で対応済み
+
+6観点の網羅的コード監査(並行性/入力ステートマシン/HID/新規F1-F4/永続化/UI)を並列実施し、確定した実害バグを修正した。
+
+- [SM1] プロファイル切替・割り当て変更を hold 中に行うと、解放処理が変更後の可変プロファイルを参照するためキー/修飾/マウスが物理的に張り付く不具合を修正(発火した実アクションを保存し、そこから解放)。
+- [H1] Joy-Con (L) を2台接続すると id 重複で `Dictionary(uniqueKeysWithValues:)` が fatalError → クラッシュする不具合を修正(uniquingKeysWith)。あわせてデバイス列挙の nil を「取得失敗」として扱い一覧が一瞬空になるのを防止。
+- [FH1] アプリ終了(Quit / Cmd-Q)時に保持中の mouseHold / modifierHold / pushToTalk が解放されず、システム全体でキー/マウスが張り付く不具合を修正(willTerminate で stop)。
+- [P1/P2] 保存済み設定(profiles / profileOptions)が破損して decode 失敗した際に、既定値で無言リセット+即上書きしてユーザーのマッピングが全損する不具合を修正(破損時は上書きしない)。
+- [P3] import 経由で組み込みでないプロファイルが先頭にある状態で削除すると activeProfileID が削除対象自身を指し UI 操作不能になる境界バグを修正。
+- [P4/P5] import 時の profileOption id 重複排除、v1→v2 移行後の legacy キー削除。
+- [C3] stop 直後に enqueue 済みタイマー Task が発火してカーソルが動くのを防止(guard isRunning)。
+- [U1] 入力ログを開いたまま Record Shortcut を選ぶとレコーダーが提示されない(2枚シート競合)を修正。
+- [U2] ファイル保存/読み込みのキャンセルで誤エラーアラートが出るのを抑止。
+- [U3] ショートカット録画中に他アプリへ切替(Cmd+Tab 等)するとバックグラウンドで割当が確定する不具合を修正。
+- [U4/U5/FL2/FL3] 入力ログ選択のダングリング、スティックプレビューの座標クランプ、hold 中ボタンの click 抑止、メニューバーからのウィンドウ再表示の堅牢化。
+- 新機能: スリープ復帰時の自動再接続、緊急無効化グローバルホットキー(⌃⌥⌘Esc)。
+- unit テストを 48 件から 60 件超へ拡充。
+
+### 実機検証してから対応する保留項目(現行アプリは実機で動作しているため盲目変更を避けた)
+- 0x3F レポートのレイアウト解釈、reportID プレフィックス補完、value/report の二重入力経路、D-pad の control.id 統一(H2/H5/H6/SM2)。実機でどのレポートが届くかログを取ってから。
+- onInput/onDevicesChanged の Task 順序(C1/C5)。`MainActor.assumeIsolated` 化が候補だが入力ホットパスのため実機確認とセットで。
+- stop / handleRemoved の per-device HID コールバック解除(C2/H4)。IOHIDManagerClose が配送を止める前提だと投機的で、構造変更を伴うため実機で検証。
+- handleRemoved のデバイス安定キー化(H3)。
+
 ## 2026-07-03 リファクタリング第1弾(refactor/plan-v1)で対応済み
 
 - 特性テスト・レポートパーサテスト・アクション実行テストを追加し、unit テストを 7 件から 36 件に拡充した。
