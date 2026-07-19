@@ -68,22 +68,22 @@ final class AppModel: ObservableObject {
         }
     }
     @Published var isStickMouseEnabled = true {
-        didSet { userDefaults.set(isStickMouseEnabled, forKey: stickMouseEnabledStoreKey) }
+        didSet { settingsStore.setStickMouseEnabled(isStickMouseEnabled) }
     }
     @Published var mouseSpeed: Double = 4200 {
-        didSet { userDefaults.set(mouseSpeed, forKey: mouseSpeedStoreKey) }
+        didSet { settingsStore.setMouseSpeed(mouseSpeed) }
     }
     @Published var mouseDeadzone: Double = 0.16 {
-        didSet { userDefaults.set(mouseDeadzone, forKey: mouseDeadzoneStoreKey) }
+        didSet { settingsStore.setMouseDeadzone(mouseDeadzone) }
     }
     @Published var mouseAcceleration: Double = 1.45 {
-        didSet { userDefaults.set(mouseAcceleration, forKey: mouseAccelerationStoreKey) }
+        didSet { settingsStore.setMouseAcceleration(mouseAcceleration) }
     }
     @Published var isMouseYInverted = false {
-        didSet { userDefaults.set(isMouseYInverted, forKey: mouseYInvertedStoreKey) }
+        didSet { settingsStore.setMouseYInverted(isMouseYInverted) }
     }
     @Published var isOnboardingCompleted = false {
-        didSet { userDefaults.set(isOnboardingCompleted, forKey: onboardingCompletedStoreKey) }
+        didSet { settingsStore.setOnboardingCompleted(isOnboardingCompleted) }
     }
     @Published private(set) var profileOptions = AppModel.defaultProfileOptions
     @Published var activeProfileID = "default" {
@@ -92,9 +92,9 @@ final class AppModel: ObservableObject {
             guard !isLoadingProfileState else { return }
             releaseAllActiveHolds()
             profiles[oldValue] = profile
-            userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
+            settingsStore.setActiveProfileID(activeProfileID)
             profile = profiles[activeProfileID] ?? .joyConLeftDefault
-            saveProfiles()
+            settingsStore.saveProfiles(profiles)
         }
     }
     @Published private(set) var devices: [JoyconDevice] = []
@@ -113,14 +113,13 @@ final class AppModel: ObservableObject {
             guard !isLoadingProfileState else { return }
             releaseAllActiveHolds()
             profiles[activeProfileID] = profile
-            saveProfiles()
+            settingsStore.saveProfiles(profiles)
         }
     }
 
     private let hidClient = JoyconHIDClient()
     private let inputSender: any InputSending
     private let configuration: Configuration
-    private let userDefaults: UserDefaults
     private var activeActionTriggers: Set<String> = []
     private var activeTriggerByControlID: [String: String] = [:]
     private var activeActionByTrigger: [String: MappingAction] = [:]
@@ -134,22 +133,11 @@ final class AppModel: ObservableObject {
     private var deviceRefreshTimer: Timer?
     private var accessibilityRefreshTimer: Timer?
     private var panicKeyMonitors: [Any] = []
-    private let legacyProfileStoreKey = "JoyconMapper.MappingProfile.v1"
-    private let profilesStoreKey = "JoyconMapper.MappingProfiles.v2"
-    private let profileOptionsStoreKey = "JoyconMapper.ProfileOptions.v1"
-    private let activeProfileStoreKey = "JoyconMapper.ActiveProfile.v2"
-    private let stickMouseEnabledStoreKey = "JoyconMapper.StickMouseEnabled.v1"
-    private let mouseSpeedStoreKey = "JoyconMapper.MouseSpeed.v1"
-    private let mouseDeadzoneStoreKey = "JoyconMapper.MouseDeadzone.v1"
-    private let mouseAccelerationStoreKey = "JoyconMapper.MouseAcceleration.v1"
-    private let mouseYInvertedStoreKey = "JoyconMapper.MouseYInverted.v1"
-    private let didRequestAccessibilityStoreKey = "JoyconMapper.DidRequestAccessibility.v1"
-    private let onboardingCompletedStoreKey = "JoyconMapper.OnboardingCompleted.v1"
-    private let settingsExportFormatVersion = 1
+    private let settingsStore: SettingsStore
 
     init(configuration: Configuration = .live, inputSender: (any InputSending)? = nil) {
         self.configuration = configuration
-        self.userDefaults = configuration.userDefaults
+        self.settingsStore = SettingsStore(userDefaults: configuration.userDefaults)
         self.inputSender = inputSender ?? MacInputSender()
         self.isAccessibilityTrusted = configuration.accessibilityTrustedOverride ?? self.inputSender.isAccessibilityTrusted
         loadMouseSettings()
@@ -272,13 +260,13 @@ final class AppModel: ObservableObject {
         }
 
         inputSender.requestAccessibilityTrust()
-        userDefaults.set(true, forKey: didRequestAccessibilityStoreKey)
+        settingsStore.setDidRequestAccessibility(true)
         refreshAccessibilityTrust()
     }
 
     func requestAccessibilityPermissionIfNeeded() {
         guard !isAccessibilityTrusted else { return }
-        guard !userDefaults.bool(forKey: didRequestAccessibilityStoreKey) else { return }
+        guard !settingsStore.didRequestAccessibility else { return }
         requestAccessibilityPermission()
     }
 
@@ -318,8 +306,8 @@ final class AppModel: ObservableObject {
         let id = uniqueProfileID()
         profileOptions.append(ProfileOption(id: id, name: trimmedName, nameKey: nil, isBuiltIn: false))
         profiles[id] = .joyConLeftDefault
-        saveProfileOptions()
-        saveProfiles()
+        settingsStore.saveProfileOptions(profileOptions)
+        settingsStore.saveProfiles(profiles)
         activeProfileID = id
     }
 
@@ -333,8 +321,8 @@ final class AppModel: ObservableObject {
             isBuiltIn: false
         ))
         profiles[id] = profile
-        saveProfileOptions()
-        saveProfiles()
+        settingsStore.saveProfileOptions(profileOptions)
+        settingsStore.saveProfiles(profiles)
         activeProfileID = id
     }
 
@@ -343,7 +331,7 @@ final class AppModel: ObservableObject {
         guard let index = profileOptions.firstIndex(where: { $0.id == activeProfileID }) else { return }
         profileOptions[index].name = trimmedName
         profileOptions[index].nameKey = nil
-        saveProfileOptions()
+        settingsStore.saveProfileOptions(profileOptions)
     }
 
     func deleteActiveProfile() {
@@ -360,9 +348,9 @@ final class AppModel: ObservableObject {
         activeProfileID = nextProfileID
         profile = profiles[nextProfileID] ?? .joyConLeftDefault
         isLoadingProfileState = false
-        userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
-        saveProfileOptions()
-        saveProfiles()
+        settingsStore.setActiveProfileID(activeProfileID)
+        settingsStore.saveProfileOptions(profileOptions)
+        settingsStore.saveProfiles(profiles)
     }
 
     func resetActiveProfileToDefaults() {
@@ -372,7 +360,7 @@ final class AppModel: ObservableObject {
     func exportSettingsData() throws -> Data {
         profiles[activeProfileID] = profile
         let snapshot = SettingsSnapshot(
-            formatVersion: settingsExportFormatVersion,
+            formatVersion: settingsStore.settingsExportFormatVersion,
             exportedAt: Date(),
             activeProfileID: activeProfileID,
             profileOptions: profileOptions,
@@ -383,31 +371,13 @@ final class AppModel: ObservableObject {
             mouseAcceleration: mouseAcceleration,
             isMouseYInverted: isMouseYInverted
         )
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(snapshot)
+        return try settingsStore.encodeSnapshot(snapshot)
     }
 
     func importSettingsData(_ data: Data) throws {
-        guard !data.isEmpty else {
-            throw SettingsImportError.emptyFile
-        }
+        let snapshot = try settingsStore.decodeSnapshot(from: data)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let snapshot: SettingsSnapshot
-        do {
-            snapshot = try decoder.decode(SettingsSnapshot.self, from: data)
-        } catch {
-            throw SettingsImportError.invalidFormat
-        }
-
-        guard snapshot.formatVersion == settingsExportFormatVersion else {
-            throw SettingsImportError.unsupportedVersion(snapshot.formatVersion)
-        }
-
-        let merged = mergedProfileOptions(snapshot.profileOptions)
+        let merged = settingsStore.mergedProfileOptions(snapshot.profileOptions)
         let options = merged.isEmpty ? Self.defaultProfileOptions : merged
 
         var importedProfiles = snapshot.profiles
@@ -430,9 +400,9 @@ final class AppModel: ObservableObject {
         mouseAcceleration = clamped(snapshot.mouseAcceleration, to: Tuning.mouseAccelerationRange)
         isMouseYInverted = snapshot.isMouseYInverted
 
-        userDefaults.set(activeProfileID, forKey: activeProfileStoreKey)
-        saveProfileOptions()
-        saveProfiles()
+        settingsStore.setActiveProfileID(activeProfileID)
+        settingsStore.saveProfileOptions(profileOptions)
+        settingsStore.saveProfiles(profiles)
     }
 
     func profileDisplayName(for id: String) -> String {
@@ -697,29 +667,29 @@ final class AppModel: ObservableObject {
     }
 
     private func loadMouseSettings() {
-        isOnboardingCompleted = userDefaults.bool(forKey: onboardingCompletedStoreKey)
+        isOnboardingCompleted = settingsStore.isOnboardingCompleted
 
-        if userDefaults.object(forKey: stickMouseEnabledStoreKey) != nil {
-            isStickMouseEnabled = userDefaults.bool(forKey: stickMouseEnabledStoreKey)
+        if let storedStickMouseEnabled = settingsStore.storedStickMouseEnabled() {
+            isStickMouseEnabled = storedStickMouseEnabled
         }
 
-        let storedSpeed = userDefaults.double(forKey: mouseSpeedStoreKey)
+        let storedSpeed = settingsStore.storedMouseSpeed
         if storedSpeed > 0 {
             mouseSpeed = clamped(storedSpeed, to: Tuning.mouseSpeedRange)
         }
 
-        let storedDeadzone = userDefaults.double(forKey: mouseDeadzoneStoreKey)
+        let storedDeadzone = settingsStore.storedMouseDeadzone
         if storedDeadzone > 0 {
             mouseDeadzone = clamped(storedDeadzone, to: Tuning.mouseDeadzoneRange)
         }
 
-        let storedAcceleration = userDefaults.double(forKey: mouseAccelerationStoreKey)
+        let storedAcceleration = settingsStore.storedMouseAcceleration
         if storedAcceleration > 0 {
             mouseAcceleration = clamped(storedAcceleration, to: Tuning.mouseAccelerationRange)
         }
 
-        if userDefaults.object(forKey: mouseYInvertedStoreKey) != nil {
-            isMouseYInverted = userDefaults.bool(forKey: mouseYInvertedStoreKey)
+        if let storedMouseYInverted = settingsStore.storedMouseYInverted() {
+            isMouseYInverted = storedMouseYInverted
         }
     }
 
@@ -727,94 +697,11 @@ final class AppModel: ObservableObject {
         isLoadingProfileState = true
         defer { isLoadingProfileState = false }
 
-        var loadedProfiles: [String: MappingProfile] = [:]
-        let (loadedOptions, optionsStoreCorrupted) = loadProfileOptions()
-
-        // Detect corruption so we never overwrite recoverable stored data with a
-        // silent default reset. When the stored blob exists but fails to decode we
-        // keep the raw data in place and skip the trailing save for that key.
-        var profilesStoreCorrupted = false
-        var loadedFromProfilesStore = false
-        var didMigrateLegacy = false
-
-        if let data = userDefaults.data(forKey: profilesStoreKey) {
-            if let decoded = try? JSONDecoder().decode([String: MappingProfile].self, from: data) {
-                loadedProfiles = decoded
-                loadedFromProfilesStore = true
-            } else {
-                profilesStoreCorrupted = true
-            }
-        }
-
-        if !loadedFromProfilesStore, !profilesStoreCorrupted,
-           let data = userDefaults.data(forKey: legacyProfileStoreKey),
-           let decoded = try? JSONDecoder().decode(MappingProfile.self, from: data) {
-            loadedProfiles["default"] = decoded
-            didMigrateLegacy = true
-        }
-
-        for option in loadedOptions where loadedProfiles[option.id] == nil {
-            loadedProfiles[option.id] = .joyConLeftDefault
-        }
-
-        for key in loadedProfiles.keys {
-            loadedProfiles[key]?.removeDPadMouseDefaults()
-        }
-
-        profiles = loadedProfiles
-        profileOptions = loadedOptions
-        let storedProfileID = userDefaults.string(forKey: activeProfileStoreKey) ?? "default"
-        activeProfileID = loadedOptions.contains(where: { $0.id == storedProfileID }) ? storedProfileID : loadedOptions[0].id
-        profile = profiles[activeProfileID] ?? .joyConLeftDefault
-
-        if !optionsStoreCorrupted {
-            saveProfileOptions()
-        }
-        if !profilesStoreCorrupted {
-            saveProfiles()
-            // Migration succeeded and was persisted to v2; drop the legacy key so a
-            // future corruption can't resurrect stale settings.
-            if didMigrateLegacy {
-                userDefaults.removeObject(forKey: legacyProfileStoreKey)
-            }
-        }
-    }
-
-    private func saveProfiles() {
-        guard let data = try? JSONEncoder().encode(profiles) else { return }
-        userDefaults.set(data, forKey: profilesStoreKey)
-    }
-
-    /// Returns the stored profile options along with a flag indicating that a
-    /// stored blob was present but failed to decode. Callers use the flag to
-    /// avoid overwriting corrupt-but-recoverable data with defaults.
-    private func loadProfileOptions() -> (options: [ProfileOption], storeCorrupted: Bool) {
-        guard let data = userDefaults.data(forKey: profileOptionsStoreKey) else {
-            return (Self.defaultProfileOptions, false)
-        }
-        guard let decoded = try? JSONDecoder().decode([ProfileOption].self, from: data) else {
-            return (Self.defaultProfileOptions, true)
-        }
-        guard !decoded.isEmpty else {
-            return (Self.defaultProfileOptions, false)
-        }
-        return (mergedProfileOptions(decoded), false)
-    }
-
-    private func mergedProfileOptions(_ storedOptions: [ProfileOption]) -> [ProfileOption] {
-        // Drop duplicate ids first-wins so imported/loaded data can't produce a
-        // Picker with duplicate entries or ambiguous CRUD targets.
-        var seenIDs = Set<String>()
-        var options = storedOptions.filter { seenIDs.insert($0.id).inserted }
-        for builtIn in Self.defaultProfileOptions where !options.contains(where: { $0.id == builtIn.id }) {
-            options.insert(builtIn, at: min(options.count, Self.defaultProfileOptions.count))
-        }
-        return options
-    }
-
-    private func saveProfileOptions() {
-        guard let data = try? JSONEncoder().encode(profileOptions) else { return }
-        userDefaults.set(data, forKey: profileOptionsStoreKey)
+        let state = settingsStore.loadProfileState()
+        profiles = state.profiles
+        profileOptions = state.options
+        activeProfileID = state.activeProfileID
+        profile = state.profile
     }
 
     private func normalizedProfileName(_ name: String, fallback: String) -> String {
